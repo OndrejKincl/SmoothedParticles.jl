@@ -70,7 +70,6 @@ end
 make_all()
 
 deploydocs(
-    devbranch = "main",
     repo = "github.com/OndrejKincl/SPHLib.jl.git",
 )
             
