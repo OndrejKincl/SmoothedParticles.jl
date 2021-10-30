@@ -16,7 +16,15 @@ jobs:
         with:
           version: '1.6'
       - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=docs/ -e '
+          using Pkg; 
+          Pkg.develop(PackageSpec(path=pwd())); 
+          Pkg.instantiate();
+          Pkg.add("WriteVTK");
+          Pkg.add("Match");
+          Pkg.add("Literate");
+          Pkg.add("Documenter");
+          Pkg.add("SparseArrays");'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
