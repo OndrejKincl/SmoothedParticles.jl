@@ -1,82 +1,71 @@
 using Match
 
 """
-    default_symmetry = "hexagonal"
-"""
-const default_symmetry = "hexagonal"
-
-"""
-    Shape
-
-Supertype for 2d geometrical shapes. Every user-defined subtype `T <: Shape` is
-expected to support method
-
-    is_inside(x::Float64, y::Float64, s::Shape) -> Bool
-
-which determines whether a given point `(x, y)` lies inside `s`.
-"""
-abstract type Shape end
-
-
-"""
-    Rectangle(xrange::Tuple{Float64, Float64}, yrange::Tuple{Float64, Float64}) <: Shape
+    Rectangle() <: Shape
 
 Define a rectangle as a cartesian product of two intervals.
 """
 struct Rectangle <: Shape
-    xmin::Float64
-    ymin::Float64
-    xmax::Float64
-    ymax::Float64
-    Rectangle(xrange::Tuple{Float64, Float64}, yrange::Tuple{Float64, Float64}) = begin
-        (x1, x2) = xrange
-        (y1, y2) = yrange
-        return new(min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
-    end
+    x1_min::Float64
+    x2_min::Float64
+    x1_max::Float64
+    x2_max::Float64
 end
 
-function is_inside(x::Float64, y::Float64, r::Rectangle)::Bool
-    return (r.xmin <= x <= r.xmax) && (r.ymin <= y <= r.ymax)
+function is_inside(x1::Float64, x2::Float64, r::Rectangle)::Bool
+    return (r.x1_min <= x1 <= r.x1_max) && (r.x2_min <= x2 <= r.x2_max)
+end
+
+function boundarybox(r::Rectangle)::Rectangle
+    return r
 end
 
 """
-    Circle(x::Float64, y::Float64, r::Float64) <: Shape
+    Circle(x1::Float64, x2::Float64, r::Float64) <: Shape
 
-Define a circle by specifying the center `(x, y)` and the radius `r`.
+Define a circle by specifying the center `(x1, x2)` and the radius `r`.
 """
 struct Circle <: Shape
-    x::Float64
-    y::Float64
+    x1::Float64
+    x2::Float64
     r::Float64
-    Circle(x::Float64, y::Float64, r::Float64) = begin
+    Circle(x1::Float64, x2::Float64, r::Float64) = begin
         @assert(r > 0.0, "radius of a circle must be positive")
-        return new(x,y,r)
+        return new(x1,x2,r)
     end
 end
 
-function is_inside(x::Float64, y::Float64, c::Circle)::Bool
-    return (x - c.x)^2 + (y - c.y)^2 <= c.r^2
+function is_inside(x1::Float64, x2::Float64, c::Circle)::Bool
+    return (x1 - c.x1)^2 + (x2 - c.x2)^2 <= c.r^2
+end
+
+function boundarybox(c::Circle)::Rectangle
+    return Rectangle(c.x1-r, c.x2-r, c.x1+r, c.x2+r) 
 end
 
 """
-    Ellipse(x::Float64, y::Float64, r1::Float64, r2::Float64) <: Shape
+    Ellipse(x1::Float64, x2::Float64, r1::Float64, r2::Float64) <: Shape
 
-Define an ellipse by specifying the center `(x, y)` and two semi-major/minor
+Define an ellipse by specifying the center `(x1, x2)` and semi-major/minor
 axes `r1`, `r2`.
 """
 struct Ellipse <: Shape
-    x::Float64
-    y::Float64
+    x1::Float64
+    x2::Float64
     r1::Float64
     r2::Float64
-    Ellipse(x::Float64, y::Float64, r1::Float64, r2::Float64) = begin
-        @assert(r1 > 0.0 && r2 > 0.0, "semi-major/minor axis must be positive")
-        return new(x, y, r1, r2)
+    Ellipse(x1::Float64, x2::Float64, r1::Float64, r2::Float64) = begin
+        @assert(r1 > 0.0 && r2 > 0.0, "semi-major & semi-minor axes must be positive")
+        return new(x1, x2, r1, r2)
     end
 end
 
-function is_inside(x::Float64, y::Float64, e::Ellipse)::Bool
-    return ((x - e.x)/e.r1)^2 + ((y - e.y)/e.r2)^2 <= 1
+function is_inside(x1::Float64, x2::Float64, e::Ellipse)::Bool
+    return ((x1 - e.x1)/e.r1)^2 + ((x2 - e.x2)/e.r2)^2 <= 1
+end
+
+function boundarybox(e::Ellipse)::Rectangle
+    return Rectangle(e.x1-r1, e.x2-r2, e.x1+r1, e.x2+r2) 
 end
 
 """
@@ -85,24 +74,24 @@ end
 Define a polygon by specifying all vortices.
 """
 struct Polygon <: Shape
-    x::Vector{Float64}
-    y::Vector{Float64}
-    degree::Int64
-    Polygon(v::Tuple{Float64, Float64}...) = begin
+    xs::Vector{Vec2}
+    Polygon(xs::Vec2...) = begin
         degree = length(v)
         @assert(degree > 2, "number of polygon vortices must be > 2")
-        x = Vector{Float64}(undef, degree)
-        y = Vector{Float64}(undef, degree)
-        for i in 1:degree
-            x[i] = v[i][1]
-            y[i] = v[i][2]
-        end
-        return new(x, y, degree)
+        return new(xs)
     end
 end
 
+function boundarybox(p::Polygon)::Rectangle
+    x1_min = minimum(x -> x[1], p.xs)
+    x1_max = maximum(x -> x[1], p.xs)
+    x2_min = minimum(x -> x[2], p.xs)
+    x2_max = maximum(x -> x[2], p.xs)
+    return Rectangle(x1_min, x2_min, x1_max, x2_max) 
+end
 
-function is_inside(x::Float64, y::Float64, p::Polygon)::Bool
+
+function is_inside(x1::Float64, x2::Float64, p::Polygon)::Bool
     #Warning! Risky math ahead!
     #Computes twice the winding number of any simple polygon.
     #Interior: +2 (if counter-clockwise) or -2 (if clockwise)
@@ -111,15 +100,15 @@ function is_inside(x::Float64, y::Float64, p::Polygon)::Bool
     #Exterior:  0
     #Relies on round(x) rounding half-integers to nearest even number
     winding2 = 0
-    for k in 2:(p.degree - 1)
+    for k in 2:(length(xs) - 1)
         winding2 += Int64(round((
-          sign((p.x[k+1] - p.x[k  ])*(y - p.y[k  ]) - (p.y[k+1] - p.y[k  ])*(x - p.x[k  ]))
-        + sign((p.x[1  ] - p.x[k+1])*(y - p.y[k+1]) - (p.y[1  ] - p.y[k+1])*(x - p.x[k+1]))
-        + sign((p.x[k  ] - p.x[1  ])*(y - p.y[1  ]) - (p.y[k  ] - p.y[1  ])*(x - p.x[1  ]))
+          sign((p.xs[k+1][1] - p.xs[k  ][1])*(x2 - p.xs[k  ][2]) - (p.xs[k+1][2] - p.x2[k  ][2])*(x1 - p.xs[k  ][1]))
+        + sign((p.xs[1  ][1] - p.xs[k+1][1])*(x2 - p.xs[k+1][2]) - (p.xs[1  ][2] - p.x2[k+1][2])*(x1 - p.xs[k+1][1]))
+        + sign((p.xs[k  ][1] - p.xs[1  ][1])*(x2 - p.xs[1  ][2]) - (p.xs[k  ][2] - p.x2[1  ][2])*(x1 - p.xs[1  ][1]))
         )/2))
     end
-    for k in 1:p.degree
-        if p.x[k] == x && p.y[k] == y
+    for k in 1:length(xs)
+        if p.x1[k] == x1 && p.x2[k] == x2
             winding2 = NaN
         end
     end
@@ -139,8 +128,18 @@ struct BooleanUnion <: Shape
     s2::Shape
 end
 
-function is_inside(x::Float64, y::Float64, u::BooleanUnion)::Bool
-    return is_inside(x, y, u.s1)||is_inside(x, y, u.s2)
+function is_inside(x1::Float64, x2::Float64, u::BooleanUnion)::Bool
+    return is_inside(x1, x2, u.s1)||is_inside(x1, x2, u.s2)
+end
+
+function boundarybox(u::BooleanUnion)::Rectangle
+    r1 = boundarybox(u.s1)
+    r2 = boundarybox(u.s2)
+    x1_min = min(r1.x1_min, r2.x1_min)
+    x2_min = min(r1.x2_min, r2.x2_min)
+    x1_max = max(r1.x1_max, r2.x1_max)
+    x2_max = max(r1.x2_max, r2.x2_max)
+    return Rectangle(x1_min, x2_min, x1_max, x2_max)
 end
 
 """
@@ -153,8 +152,18 @@ struct BooleanIntersection <: Shape
     s2::Shape
 end
 
-function is_inside(x::Float64, y::Float64, i::BooleanIntersection)::Bool
-    return is_inside(x, y, i.s1) && is_inside(x, y, i.s2)
+function is_inside(x1::Float64, x2::Float64, i::BooleanIntersection)::Bool
+    return is_inside(x1, x2, i.s1) && is_inside(x1, x2, i.s2)
+end
+
+function boundarybox(i::BooleanIntersection)::Rectangle
+    r1 = boundarybox(i.s1)
+    r2 = boundarybox(i.s2)
+    x1_min = max(r1.x1_min, r2.x1_min)
+    x2_min = max(r1.x2_min, r2.x2_min)
+    x1_max = min(r1.x1_max, r2.x1_max)
+    x2_max = min(r1.x2_max, r2.x2_max)
+    return Rectangle(x1_min, x2_min, x1_max, x2_max)
 end
 
 """
@@ -167,23 +176,30 @@ struct BooleanDifference <: Shape
     s2::Shape
 end
 
-function is_inside(x::Float64, y::Float64, d::BooleanDifference)::Bool
-    return is_inside(x, y, d.s1) && !is_inside(x, y, d.s2)
+function is_inside(x1::Float64, x2::Float64, d::BooleanDifference)::Bool
+    return is_inside(x1, x2, d.s1) && !is_inside(x1, x2, d.s2)
 end
 
+function boundarybox(d::BooleanDifference)::Rectangle
+    return boundarybox(d.s1)
+end
 
 """
     Specification(s::Shape, f::Function) <: Shape
 
-Define a shape of all `(x, y)` in `s`, such that `f(x,y) == true`.
+Define a shape of all `(x1, x2)` in `s`, such that `f(x1,x2) == true`.
 """
 struct Specification <: Shape
     s::Shape
     f::Function
 end
 
-function is_inside(x::Float64, y::Float64, sp::Specification)::Bool
-    return sp.f(x,y) && is_inside(x, y, sp.s)
+function is_inside(x1::Float64, x2::Float64, sp::Specification)::Bool
+    return sp.f(x1,x2) && is_inside(x1, x2, sp.s)
+end
+
+function boundarybox(sp::Specification)::Rectangle
+    return boundarybox(sp.s1)
 end
 
 """
@@ -199,23 +215,23 @@ struct BoundaryLayer <: Shape
     dr::Float64
     width::Float64
     symmetry::String
-    BoundaryLayer(s::Shape, dr::Float64, width::Float64; symmetry = default_symmetry) = begin
+    BoundaryLayer(s::Shape, dr::Float64, width::Float64, symmetry = "square") = begin
         @assert(dr > 0., "second argument must be positive")
         @assert(width > 0., "third argument must be positive")
         return new(s, dr, width, symmetry)
     end
 end
 
-function is_inside(x::Float64, y::Float64, bl::BoundaryLayer)
-    if is_inside(x, y, bl.s)
+function is_inside(x1::Float64, x2::Float64, bl::BoundaryLayer)
+    if is_inside(x1, x2, bl.s)
         return false
     end
     if bl.symmetry == "square"
         N = Int64(ceil(bl.width/bl.dr))
         for i in -N:N, j in -N:N
-            dx = i*bl.dr
-            dy = j*bl.dr
-            if is_inside(x + dx, y + dy, bl.s) && (dx^2 + dy^2 <= bl.width^2)
+            dx1 = i*bl.dr
+            dx2 = j*bl.dr
+            if is_inside(x1 + dx1, x2 + dx2, bl.s) && (dx1^2 + dx2^2 <= bl.width^2)
                 return true
             end
         end
@@ -224,14 +240,23 @@ function is_inside(x::Float64, y::Float64, bl::BoundaryLayer)
         a = (4/3)^(1/4)*bl.dr
         b = (3/4)^(1/4)*bl.dr
         for i in -N:N, j in -N:N
-            dx = (i + 0.5*j)*a
-            dy = j*b
-            if is_inside(x + dx, y + dy, bl.s) && (dx^2 + dy^2 <= bl.width^2)
+            dx1 = (i + 0.5*j)*a
+            dx2 = j*b
+            if is_inside(x1 + dx1, x2 + dx2, bl.s) && (dx1^2 + dx2^2 <= bl.width^2)
                 return true
             end
         end
     end
     return false
+end
+
+function boundarybox(bl::BoundaryLayer)::Rectangle
+    r = boundarybox(bl.s)
+    x1_min = r.x1_min - bl.width
+    x2_min = r.x2_min - bl.width
+    x1_max = r.x1_max + bl.width
+    x2_max = r.x2_max + bl.width
+    return Rectangle(x1_min, x2_min, x1_max, x2_max)
 end
 
 #define +,-,* on shapes as equivalent to BooleanUnion, BooleanDifference and BooleanIntersection respectively
@@ -241,67 +266,46 @@ Base.:*(s1::Shape, s2::Shape) = BooleanIntersection(s1, s2)
 
 #Function that creates regular grid inside a given shape
 
-function grid(sys::ParticleSystem, char_function::Function; symmetry = default_symmetry)::Tuple{Vector{Float64}, Vector{Float64}}
+function grid(sys::ParticleSystem, char_function::Function, dr::Float64, symmetry = "square")::Vector{Vec2}
     return @match symmetry begin
-		"square" 	=> squaregrid(sys, char_function)
-		"hexagonal" => hexagrid(sys, char_function)
+		"square" 	=> squaregrid(sys, char_function, dr)
+		"hexagonal" => hexagrid(sys, char_function, dr)
 		_ 			=> error("invalid symmetry type: "*symmetry)
     end
 end
 
-function squaregrid(sys::ParticleSystem, char_function::Function)::Tuple{Vector{Float64}, Vector{Float64}}
-	N = Int64(round((sys.xmax - sys.xmin)/sys.dr))
-	M = Int64(round((sys.ymax - sys.ymin)/sys.dr))
-    x = Float64[]
-    y = Float64[]
+function squaregrid(sys::ParticleSystem, char_function::Function, dr::Float64)::Vector{Vec2}
+	N = Int64(round((sys.x1_max - sys.x1_min)/dr))
+	M = Int64(round((sys.x2_max - sys.x2_min)/dr))
+    xs = Vec2[]
 	for j in 0:M, i in 0:N
-        _x = sys.xmin + i*sys.dr
-        _y = sys.ymin + j*sys.dr
-        if char_function(_x, _y)
-            push!(x, _x)
-            push!(y, _y)
+        x1 = sys.x1_min + i*dr
+        x2 = sys.x2_min + j*dr
+        x = (x1, x2)
+        if char_function(x)
+            push!(xs, x)
         end
 	end
-	return (x, y)
+	return xs
 end
 
-function hexagrid(sys::ParticleSystem, char_function::Function)::Tuple{Vector{Float64}, Vector{Float64}}
-	a = (4/3)^(1/4)*sys.dr
-	b = (3/4)^(1/4)*sys.dr
-	N = Int64(round((sys.xmax - sys.xmin)/a))
-	M = Int64(round((sys.ymax - sys.ymin)/b))
-    x = Float64[]
-    y = Float64[]
+function hexagrid(sys::ParticleSystem, char_function::Function, dr::Float64)::Vector{Vec2}
+	a = (4/3)^(1/4)*dr
+	b = (3/4)^(1/4)*dr
+	N = Int64(round((sys.x1_max - sys.x1_min)/a))
+	M = Int64(round((sys.x2_max - sys.x2_min)/b))
+    xs = Vec2[]
 	for j in 0:M, i in 0:N
-        _x = sys.xmin + (i + (j%2)/2)*a
-        _y = sys.ymin + j*b
-        if char_function(_x, _y)
-            push!(x, _x)
-            push!(y, _y)
+        x1 = sys.x1_min + (i + (j%2)/2)*a
+        x2 = sys.x2_min + j*b
+        x = Vec2(x1, x2)
+        if char_function(x)
+            push!(xs, x)
         end
 	end
-	return (x,y)
+	return xs
 end
 
-"""
-    generate_particles!(sys::ParticleSystem,
-                        char_function::Function,
-                        constructor::Function;
-                        dr::Float64 = sys.dr,
-                        symmetry::String = default_symmetry)
-
-Create particles using `constructor(x::Float64, y::Float64)::AbstractParticle` at every point,
-where `char_function(x::Float64, y::Float64)::Bool` is `true`. The density of particles
-will be ``\\frac{1}{\\text{d}r^2}``.
-
-Supported values of `symmetry` are `"hexagonal"` or `"square"`.
-"""
-function generate_particles!(sys::ParticleSystem, char_function::Function, constructor::Function; dr::Float64 = sys.dr, symmetry::String = default_symmetry)
-    (x, y) = grid(sys, char_function; symmetry = symmetry)
-    for k in 1:min(length(x), length(y))
-        push!(sys.particles, constructor(x[k], y[k]))
-    end
-end
 
 """
     generate_particles!(sys::ParticleSystem,
@@ -310,37 +314,16 @@ end
                         dr::Float64 = sys.dr,
                         symmetry::String = default_symmetry)
 
-Create particles using `constructor(x::Float64, y::Float64)::AbstractParticle` at every point
+Create particles using `constructor(x::Vec2)::AbstractParticle` at every point
 inside a given shape. The density of particles will be ``\\frac{1}{\\text{d}r^2}``.
 
 Supported values of `symmetry` are `"hexagonal"` or `"square"`.
 """
-function generate_particles!(sys::ParticleSystem, geometry::Shape, constructor::Function; dr::Float64 = sys.dr, symmetry::String = default_symmetry)
-    generate_particles!(sys, (x,y) -> is_inside(x, y, geometry), constructor; dr = dr, symmetry = symmetry)
-end
-
-"""
-    snap_to_grid(sys::ParticleSystem,
-                 x::Float64, y::Float64;
-                 symmetry::String = default_symmetry
-                 )::Tuple{Float64, Float64}
-
-Find the nearest point to `(x, y)` which will be inside a grid.
-"""
-function snap_to_grid(sys::ParticleSystem,
-                      x::Float64, y::Float64;
-                      symmetry::String = default_symmetry
-                      )::Tuple{Float64, Float64}
-    if symmetry == "square"
-        x = sys.xmin + round((x - sys.xmin)/sys.dr)*sys.dr
-        y = sys.ymin + round((y - sys.ymin)/sys.dr)*sys.dr
-    elseif symmetry == "hexagonal"
-        a = (4/3)^(1/4)*sys.dr
-    	b = (3/4)^(1/4)*sys.dr
-    	y = sys.ymin + round((y - sys.ymin)/b)*b
-        x = sys.xmin + (j%2)/2*a + round((x - sys.xmin - (j%2)/2*a)/b)*b
+function generate_particles!(sys::ParticleSystem, geometry::Shape, constructor::Function, dr::Float64, symmetry::String = "square")
+    xs = grid(sys, x -> geometry.is_inside(x[1], x[2]), dr, symmetry)
+    for x in xs
+        push!(sys.particles, constructor(x))
     end
-    return (x,y)
 end
 
 
@@ -350,7 +333,7 @@ end
 @inline function pop!(sys::ParticleSystem)
 	p = sys.particles[end]
 	# remove p from cell list
-	key = find_key(sys, p)
+	key = find_key(sys, p.x[1], p.x[2])
 	if 1 <= key <= sys.key_max
 		for i in 1:length(sys.cell_list[key])
 			if ismissing(sys.cell_list[key][i])

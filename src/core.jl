@@ -1,23 +1,14 @@
-using SparseArrays
-
-#Find the cell index for a given particle.
-@inline function find_key(sys::ParticleSystem, p::AbstractParticle, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
-	try
-		return 1 + Int64(floor(p.x/sys.h)) + Δi - sys.i_phase + sys.i_max*(Int64(floor(p.y/sys.h)) + Δj - sys.j_phase)
-	catch
-		return -1
-	end
+#fast scalar product
+@inline function dot(x::Vec2, y::Vec2)::Float64
+	return x[1]*y[1] + x[2]*y[2]
 end
 
-#Find the cell index for given coordinates x,y.
-@inline function find_key(sys::ParticleSystem, x::Float64, y::Float64, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
-	try
-		return 1 + Int64(floor(x/sys.h)) + Δi - sys.i_phase + sys.i_max*(Int64(floor(y/sys.h)) + Δj - sys.j_phase)
-	catch
-		return -1
-	end
+#Find the cell index for given coordinates x1,x2.
+@inline function find_key(sys::ParticleSystem, x1::Float64, x2::Float64, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
+	i = 1 + Int64(floor(x1/sys.h)) + Δi - sys.i_phase
+	j = 1 + Int64(floor(x2/sys.h)) + Δj - sys.j_phase
+	return i + sys.i_max*(j-1)
 end
-
 
 #Find vacations, where particles are missing.
 @inline function find_vacation!(a::AbstractArray)::Int64
@@ -43,15 +34,17 @@ binary particle operators or assembling matrices will lead to incorrect results.
 """
 @inline function create_cell_list!(sys::ParticleSystem)
 	#delete all particles outside of the domain
-	remove_particles!(sys, p -> !(sys.xmin <= p.x <= sys.xmax && sys.ymin <= p.y <= sys.ymax))
+	remove_particles!(sys, p -> !(sys.x1_min <= p.x[1] <= sys.x1_max && sys.x2_min <= p.x[2] <= sys.x2_max))
 
 	#declare all entries of every cell as missing
 	Threads.@threads for cell in sys.cell_list
-		cell .= missing
+		for k in 1:length(cell)
+			cell[k] = missing
+		end
 	end
 	#fill the cell list with new entries
 	Threads.@threads for p in sys.particles
-		key = find_key(sys, p)
+		key = find_key(sys, p.x[1], p.x[2])
 		if 1 <= key <= sys.key_max
 			cell = sys.cell_list[key]
 			lock(sys.cell_lock[key])
@@ -68,7 +61,7 @@ end
 
 #Apply action between a cell and all neighbouring cells.
 @inline function _apply_binary!(sys::ParticleSystem, action!::Function, p::AbstractParticle)
-	key = find_key(sys, p)
+	key = find_key(sys, p.x[1], p.x[2])
 	for Δkey in 0:8
 		neighbour_key = key + (Δkey%3-1) + sys.i_max*(div(Δkey,3)%3-1)
 		if 1 <= neighbour_key <= sys.key_max
@@ -135,7 +128,7 @@ end
 Calculate the distance between two particles `p` and `q`.
 """
 @inline function dist(p::AbstractParticle, q::AbstractParticle)::Float64
-	return sqrt((p.x - q.x)^2 + (p.y - q.y)^2)
+	return sqrt((p.x[1] - q.x[1])^2 + (p.x[2] - q.x[2])^2)
 end
 
 """
@@ -172,13 +165,9 @@ where ``p_i``, ``p_j`` are respectively the i-th and j-th particle in `sys::Part
 @inline function assemble_matrix(sys::ParticleSystem, func::Function)::SparseMatrixCSC{Float64}
 	N = length(sys.particles)
 	id = Dict(sys.particles[i] => i for i in 1:N)	#identify every particle by its order
-	est_nonzero = N*Int64(ceil(pi*(sys.h/sys.dr)^2)+1)	#estimated number of nonzero entries
 	I = Int64[] 	#coord i of every nonzero entry
 	J = Int64[] 	#coord j of every nonzero entry
 	V = Float64[]   #value of entry i,j
-	sizehint!(I, est_nonzero)
-	sizehint!(J, est_nonzero)
-	sizehint!(V, est_nonzero)
 	for p in sys.particles
 		for k in 0:8
 			key = find_key(sys, p, k%3-1, div(k,3)-1)
@@ -204,7 +193,7 @@ end
 
 
 """
-	sum(sys::ParticleSystem, func::Function, x::Float64, y::Float64)::Float64
+	sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
 
 For given function `func(p::T, r::Float64)::Float64 where T <: AbstractParticle` it returns the sum
 
@@ -212,19 +201,19 @@ For given function `func(p::T, r::Float64)::Float64 where T <: AbstractParticle`
 	\\sum_{p \\in \\text{sys.particles}} \\text{func}(p, \\sqrt{(p.x - x)^2 + (p.y - y)^2}).
 ```
 
-This can be useful if one needs to compute SPH interpolation in a point which is
+This can be useful if one needs to compute SPH interpolation at a point which is
 not occupied by a particle.
 """
-@inline function sum(sys::ParticleSystem, func::Function, x::Float64, y::Float64)::Float64
+@inline function sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
 	out = 0.0
 	for k in 0:8
-		key = find_key(sys, x, y, k%3-1, div(k,3)-1)
+		key = find_key(sys, x[1], x[2], k%3-1, div(k,3)-1)
 		if 1 <= key <= sys.key_max
 			for q in sys.cell_list[key]
 				if ismissing(q)
 					break
 				end
-				r = sqrt((x - q.x)^2 + (y - q.y)^2)
+				r = sqrt((x[1] - q.x[1])^2 + (x[2] - q.x[2])^2)
 				if (r > sys.h)
 					continue
 				end
