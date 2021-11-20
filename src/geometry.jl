@@ -1,5 +1,13 @@
 using Match
 
+function is_inside(x::Vec2, s::Shape)::Bool
+    return is_inside(x[1], x[2], s)
+end
+
+function is_inside(p::AbstractParticle, s::Shape)::Bool
+    return is_inside(p.x[1], p.x[2], s)
+end
+
 """
     Rectangle() <: Shape
 
@@ -40,7 +48,7 @@ function is_inside(x1::Float64, x2::Float64, c::Circle)::Bool
 end
 
 function boundarybox(c::Circle)::Rectangle
-    return Rectangle(c.x1-r, c.x2-r, c.x1+r, c.x2+r) 
+    return Rectangle(c.x1-c.r, c.x2-c.r, c.x1+c.r, c.x2+c.r) 
 end
 
 """
@@ -195,11 +203,11 @@ struct Specification <: Shape
 end
 
 function is_inside(x1::Float64, x2::Float64, sp::Specification)::Bool
-    return sp.f(x1,x2) && is_inside(x1, x2, sp.s)
+    return sp.f(Vec2(x1,x2)) && is_inside(x1, x2, sp.s)
 end
 
 function boundarybox(sp::Specification)::Rectangle
-    return boundarybox(sp.s1)
+    return boundarybox(sp.s)
 end
 
 """
@@ -212,39 +220,22 @@ Supported values of `symmetry` are `"hexagonal"` or `"square"`.
 """
 struct BoundaryLayer <: Shape
     s::Shape
-    dr::Float64
+    xs::Vector{Vec2}
     width::Float64
-    symmetry::String
-    BoundaryLayer(s::Shape, dr::Float64, width::Float64, symmetry = "square") = begin
-        @assert(dr > 0., "second argument must be positive")
+    BoundaryLayer(s::Shape, grid::Grid, width::Float64) = begin
         @assert(width > 0., "third argument must be positive")
-        return new(s, dr, width, symmetry)
+        xs = covering(grid, s)
+        return new(s, xs, width)
     end
 end
 
-function is_inside(x1::Float64, x2::Float64, bl::BoundaryLayer)
+function is_inside(x1::Float64, x2::Float64, bl::BoundaryLayer)::Bool
     if is_inside(x1, x2, bl.s)
         return false
     end
-    if bl.symmetry == "square"
-        N = Int64(ceil(bl.width/bl.dr))
-        for i in -N:N, j in -N:N
-            dx1 = i*bl.dr
-            dx2 = j*bl.dr
-            if is_inside(x1 + dx1, x2 + dx2, bl.s) && (dx1^2 + dx2^2 <= bl.width^2)
-                return true
-            end
-        end
-    elseif bl.symmetry == "hexagonal"
-        N = Int64(ceil(sqrt(2)*bl.width/bl.dr))
-        a = (4/3)^(1/4)*bl.dr
-        b = (3/4)^(1/4)*bl.dr
-        for i in -N:N, j in -N:N
-            dx1 = (i + 0.5*j)*a
-            dx2 = j*b
-            if is_inside(x1 + dx1, x2 + dx2, bl.s) && (dx1^2 + dx2^2 <= bl.width^2)
-                return true
-            end
+    for x in bl.xs
+        if (x[1] - x1)^2 + (x[2] - x2)^2 < bl.width^2
+            return true
         end
     end
     return false
@@ -264,48 +255,6 @@ Base.:+(s1::Shape, s2::Shape) = BooleanUnion(s1, s2)
 Base.:-(s1::Shape, s2::Shape) = BooleanDifference(s1, s2)
 Base.:*(s1::Shape, s2::Shape) = BooleanIntersection(s1, s2)
 
-#Function that creates regular grid inside a given shape
-
-function grid(sys::ParticleSystem, char_function::Function, dr::Float64, symmetry = "square")::Vector{Vec2}
-    return @match symmetry begin
-		"square" 	=> squaregrid(sys, char_function, dr)
-		"hexagonal" => hexagrid(sys, char_function, dr)
-		_ 			=> error("invalid symmetry type: "*symmetry)
-    end
-end
-
-function squaregrid(sys::ParticleSystem, char_function::Function, dr::Float64)::Vector{Vec2}
-	N = Int64(round((sys.x1_max - sys.x1_min)/dr))
-	M = Int64(round((sys.x2_max - sys.x2_min)/dr))
-    xs = Vec2[]
-	for j in 0:M, i in 0:N
-        x1 = sys.x1_min + i*dr
-        x2 = sys.x2_min + j*dr
-        x = (x1, x2)
-        if char_function(x)
-            push!(xs, x)
-        end
-	end
-	return xs
-end
-
-function hexagrid(sys::ParticleSystem, char_function::Function, dr::Float64)::Vector{Vec2}
-	a = (4/3)^(1/4)*dr
-	b = (3/4)^(1/4)*dr
-	N = Int64(round((sys.x1_max - sys.x1_min)/a))
-	M = Int64(round((sys.x2_max - sys.x2_min)/b))
-    xs = Vec2[]
-	for j in 0:M, i in 0:N
-        x1 = sys.x1_min + (i + (j%2)/2)*a
-        x2 = sys.x2_min + j*b
-        x = Vec2(x1, x2)
-        if char_function(x)
-            push!(xs, x)
-        end
-	end
-	return xs
-end
-
 
 """
     generate_particles!(sys::ParticleSystem,
@@ -319,8 +268,8 @@ inside a given shape. The density of particles will be ``\\frac{1}{\\text{d}r^2}
 
 Supported values of `symmetry` are `"hexagonal"` or `"square"`.
 """
-function generate_particles!(sys::ParticleSystem, geometry::Shape, constructor::Function, dr::Float64, symmetry::String = "square")
-    xs = grid(sys, x -> geometry.is_inside(x[1], x[2]), dr, symmetry)
+function generate_particles!(sys::ParticleSystem, grid::Grid, geometry::Shape, constructor::Function)
+    xs = covering(grid, geometry)
     for x in xs
         push!(sys.particles, constructor(x))
     end

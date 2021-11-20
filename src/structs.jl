@@ -2,7 +2,12 @@ using  StaticArrays
 
 const Vec2 = SArray{Tuple{2},Float64,1,2}
 const Mat2 = SArray{Tuple{2,2},Float64,2,4}
-const INIT_CELL_SIZE = 0
+
+const Vec3 = SArray{Tuple{3},Float64,1,3}
+const Mat3 = SArray{Tuple{3,3},Float64,2,9}
+
+const VecX = Union{Vec2, Vec3}
+const MatX = Union{Mat2, Mat3}
 
 """
 	AbstractParticle
@@ -34,10 +39,7 @@ The constructor specifies that:
 struct ParticleSystem{T <: AbstractParticle}
 	h::Float64
 
-	x1_min::Float64
-	x2_min::Float64
-	x1_max::Float64
-	x2_max::Float64
+	domain::Shape
 
 	i_phase::Int64
 	j_phase::Int64
@@ -50,32 +52,28 @@ struct ParticleSystem{T <: AbstractParticle}
 	cell_list::Vector{Vector{Union{Missing, T}}}
 	cell_lock::Vector{Threads.ReentrantLock}	#locks used in parallel cell_list generation
 
-	ParticleSystem(T::DataType, dom::Shape, h::Float64) =
+	ParticleSystem(T::DataType, domain::Shape, h::Float64) =
 	begin
 			@assert(h  > 0.0, "invalid ParticleSystem declaration! (h must be a positive float)")
 			@assert(T <: AbstractParticle, "invalid ParticleSystem declaration! ("*string(T)*" is not an AbstractParticle subtype)")
 			@assert(hasfield(T, :x)  , "invalid ParticleSystem declaration! (particles must have a field `x::Vec2`)")
-			rect = boundarybox(dom)
-			x1_min = rect.x1_min
-			x2_min = rect.x2_min
-			x1_max = rect.x1_max
-			x2_max = rect.x2_max
-			i_phase = Int64(floor(x1_min/h))
-			j_phase = Int64(floor(x2_min/h))
-			i_max 	= Int64(floor(x1_max/h)) - i_phase + 1
-			j_max 	= Int64(floor(x2_max/h)) - j_phase + 1
+			rect = boundarybox(domain)
+			i_phase = Int64(floor(rect.x1_min/h))
+			j_phase = Int64(floor(rect.x2_min/h))
+			i_max 	= Int64(floor(rect.x1_max/h)) - i_phase + 1
+			j_max 	= Int64(floor(rect.x2_max/h)) - j_phase + 1
 			key_max = i_max*j_max
 
 			particles = Vector{T}()
 			cell_list = Vector{Vector{Union{Missing, T}}}(undef, key_max)
 			cell_lock = Vector{Threads.ReentrantLock}(undef, key_max)
 			for key in 1:key_max
-				cell_list[key] = Vector{Union{Missing, T}}(missing, INIT_CELL_SIZE)
+				cell_list[key] = Vector{Union{Missing, T}}()
 				cell_lock[key] = Threads.ReentrantLock()
 			end
-			return new{T}(h, 
-				x1_min, x2_min, 
-				x1_max, x2_max, 
+			return new{T}(
+				h, 
+				rect, 
 				i_phase, j_phase, 
 				i_max, j_max, key_max, 
 				T, particles,

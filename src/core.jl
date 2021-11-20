@@ -1,17 +1,27 @@
+using SparseArrays
+
 #fast scalar product
-@inline function dot(x::Vec2, y::Vec2)::Float64
+function dot(x::Vec2, y::Vec2)::Float64
 	return x[1]*y[1] + x[2]*y[2]
 end
 
+function norm(x::Vec2)::Float64
+	return sqrt(x[1]*x[1] + x[2]*x[2])
+end
+
 #Find the cell index for given coordinates x1,x2.
-@inline function find_key(sys::ParticleSystem, x1::Float64, x2::Float64, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
-	i = 1 + Int64(floor(x1/sys.h)) + Δi - sys.i_phase
-	j = 1 + Int64(floor(x2/sys.h)) + Δj - sys.j_phase
-	return i + sys.i_max*(j-1)
+function find_key(sys::ParticleSystem, x1::Float64, x2::Float64, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
+	try
+		i = 1 + Int64(floor(x1/sys.h)) + Δi - sys.i_phase
+		j = 1 + Int64(floor(x2/sys.h)) + Δj - sys.j_phase
+		return i + sys.i_max*(j-1)
+	catch
+		return -1
+	end
 end
 
 #Find vacations, where particles are missing.
-@inline function find_vacation!(a::AbstractArray)::Int64
+function find_vacation!(a::AbstractArray)::Int64
 	#find first non-missing entry
 	for i in eachindex(a)
 		if ismissing(a[i])
@@ -34,7 +44,7 @@ binary particle operators or assembling matrices will lead to incorrect results.
 """
 @inline function create_cell_list!(sys::ParticleSystem)
 	#delete all particles outside of the domain
-	remove_particles!(sys, p -> !(sys.x1_min <= p.x[1] <= sys.x1_max && sys.x2_min <= p.x[2] <= sys.x2_max))
+	remove_particles!(sys, p -> !is_inside(p, sys.domain))
 
 	#declare all entries of every cell as missing
 	Threads.@threads for cell in sys.cell_list
@@ -86,7 +96,7 @@ Apply a binary operator `action!(p::T, q::T, r::Float64)` between any two
 neighbouring particles `p`, `q` in `sys::ParticleSystem{T}`. Value `r` is their
 mutual distance.
 """
-@inline function apply_binary!(sys::ParticleSystem, action!::Function)
+function apply_binary!(sys::ParticleSystem, action!::Function)
 	Threads.@threads for p in sys.particles
 		_apply_binary!(sys, action!, p)
 	end
@@ -98,7 +108,7 @@ end
 Apply a unary operator `action!(p::T)` on every particle `p` in
 `sys::ParticleSystem{T}`.
 """
-@inline function apply_unary!(sys::ParticleSystem, action!::Function)
+function apply_unary!(sys::ParticleSystem, action!::Function)
 	Threads.@threads for p in sys.particles
 		action!(p)
 	end
@@ -111,7 +121,7 @@ Calls either [`apply_unary!`](@ref) or [`apply_binary!`](@ref) according to the
 signature of `action!`. If `self == true`, then particle self-interaction
 for binary operator is allowed.
 """
-@inline function apply!(sys::ParticleSystem, action!::Function; self::Bool = false)
+function apply!(sys::ParticleSystem, action!::Function; self::Bool = false)
 	if hasmethod(action!, (sys.particle_type, sys.particle_type, Float64))
 		apply_binary!(sys, action!)
 		if self
@@ -127,7 +137,7 @@ end
 
 Calculate the distance between two particles `p` and `q`.
 """
-@inline function dist(p::AbstractParticle, q::AbstractParticle)::Float64
+function dist(p::AbstractParticle, q::AbstractParticle)::Float64
 	return sqrt((p.x[1] - q.x[1])^2 + (p.x[2] - q.x[2])^2)
 end
 
@@ -142,7 +152,7 @@ For given function `func(q::T)::Float64 where T <: AbstractParticle`, assemble a
 
 where ``p_i`` is the i-th particle in `sys::ParticleSystem{T}`.
 """
-@inline function assemble_vector(sys::ParticleSystem, func::Function)::Vector{Float64}
+function assemble_vector(sys::ParticleSystem, func::Function)::Vector{Float64}
 	N = length(sys.particles)
 	v = zeros(N)
 	Threads.@threads for index in 1:N
@@ -170,7 +180,7 @@ where ``p_i``, ``p_j`` are respectively the i-th and j-th particle in `sys::Part
 	V = Float64[]   #value of entry i,j
 	for p in sys.particles
 		for k in 0:8
-			key = find_key(sys, p, k%3-1, div(k,3)-1)
+			key = find_key(sys, p.x[1], p.x[2], k%3-1, div(k,3)-1)
 			if 1 <= key <= sys.key_max
 				for q in sys.cell_list[key]
 					if ismissing(q)
@@ -218,6 +228,26 @@ not occupied by a particle.
 					continue
 				end
 				out += func(q,r)
+			end
+		end
+	end
+	return out
+end
+
+@inline function sum(sys::ParticleSystem, func::Function, p::AbstractParticle)::Float64
+	out = 0.0
+	for k in 0:8
+		key = find_key(sys, x[1], x[2], k%3-1, div(k,3)-1)
+		if 1 <= key <= sys.key_max
+			for q in sys.cell_list[key]
+				if ismissing(q)
+					break
+				end
+				r = sqrt((x[1] - q.x[1])^2 + (x[2] - q.x[2])^2)
+				if (r > sys.h)
+					continue
+				end
+				out += func(p,q,r)
 			end
 		end
 	end

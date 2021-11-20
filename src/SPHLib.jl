@@ -30,7 +30,13 @@ export apply!,
        dist, 
        assemble_matrix, 
        assemble_vector,
-       dot
+       dot,
+       norm
+
+include("grids.jl")
+export Grid,
+       Squaregrid,
+       Hexagrid
 
 include("geometry.jl")
 export generate_particles!, 

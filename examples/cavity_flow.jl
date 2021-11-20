@@ -37,89 +37,96 @@ const FLUID = 0.
 const WALL = 1.
 const LID = 2.
 
-#=
-Declare fields (unknowns)
-
-* `Dx`, `Dy` = velocity
-* `DDx`, `DDy` = acceleration
-* `rho` = density
-* `P` = pressure
-* `type` = particle type
-=#
-
-@define_particle Particle Dx Dy DDx DDy rho type P
-
-function main()
+mutable struct Particle <: AbstractParticle
+	x::Vec2
+	v::Vec2
+	a::Vec2
+	rho::Float64
+	Drho::Float64
+	P::Float64
+	type::Float64
+	Particle(x::Vec2, type::Float64) = begin
+		v1 = (type == LID ? vlid : 0.)
+		return new(x, Vec2(v1, 0.0), zero(Vec2), rho0, 0., 0., type)
+	end
+end
 
 #=
 Define geometry and create particles
 =#
 
-	sys = ParticleSystem(Particle, (-2*wwall, llid + 2*wwall), (-2*wwall, llid + 2*wwall), dr, h)
-	box = Rectangle((0., llid), (0., llid))
-	walls = BoundaryLayer(box, dr, wwall)
-	lid   = Specification(walls, (x,y) -> y > llid)
-	walls = Specification(walls, (x,y) -> y <= llid)
+function make_system()
+	grid = Grid(dr, :hexagonal)
+	box = Rectangle(0., 0., llid, llid)
+	wall = BoundaryLayer(box, grid, wwall)
+	sys = ParticleSystem(Particle, box + wall, h)
 
-	generate_particles!(sys, box, (x,y) -> Particle(x,y; type = FLUID, rho = rho0))
-	generate_particles!(sys, lid, (x,y) -> Particle(x,y; type = LID, rho = rho0, Dx = vlid))
-	generate_particles!(sys, walls, (x,y) -> Particle(x,y; type = WALL, rho = rho0))
+	lid   = Specification(wall, x -> x[2] > llid)
+	wall = Specification(wall, x -> x[2] <= llid)
+
+	generate_particles!(sys, grid, box, x -> Particle(x, FLUID))
+	generate_particles!(sys, grid, lid, x -> Particle(x, LID))
+	generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
+	return sys
+end
 
 #=
 Define interactions between particles
 =#
 
-	function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-    	if p.type == FLUID
-      		p.rho += dt*((p.x - q.x)*(p.Dx - q.Dx) + (p.y - q.y)*(p.Dy - q.Dy))*m*rDwendland2(h,r)
-    	end
-  	end
+#Define interactions between particles
 
-	function internal_force!(p::Particle, q::Particle, r::Float64)
-		pressure_term = p.P/p.rho^2 + q.P/q.rho^2
-		viscous_term = 2.0*mu/(p.rho*q.rho)
-		kernel = m*rDwendland2(h,r)
-		p.DDx += kernel*(-pressure_term*(p.x - q.x) + viscous_term*(p.Dx - q.Dx))
-		p.DDy += kernel*(-pressure_term*(p.y - q.y) + viscous_term*(p.Dy - q.Dy))
+@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
+	if p.type == FLUID
+		ker = m*rDwendland2(h,r)
+		p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
 	end
+end
 
-	function find_pressure!(p::Particle)
-		p.P = c^2*(p.rho - rho0)
-	end
+function find_pressure!(p::Particle)
+	p.rho += p.Drho*dt
+	p.Drho = 0.0
+	p.P = c^2*(p.rho-rho0)
+end
 
-	function update!(p::Particle)
-		if p.type == FLUID
-			p.Dx += p.DDx*dt
-			p.Dy += p.DDy*dt
-			p.x += p.Dx*dt
-			p.y += p.Dy*dt
-		end
-		p.DDx = 0.0
-		p.DDy = 0.0
+@inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
+	ker = m*rDwendland2(h,r)
+	p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+	p.a += +2*ker*(mu/rho0^2)*(p.v - q.v)
+end
+
+function move!(p::Particle)
+	p.a = zero(Vec2)
+	if p.type == FLUID
+		p.x += dt*p.v
 	end
+end
+
+function accelerate!(p::Particle)
+	if p.type == FLUID
+		p.v += 0.5*dt*p.a
+	end
+end
 
 #=
 Time iteration
 =#
-
-	out = new_pvd_file("cavity_flow")
-	P = ScalarField(sys, :P, "pressure")
-	v = VectorField(sys, (:Dx, :Dy), "velocity")
-	type = ScalarField(sys, :type, "type")
-
-	println(count(p->(p.type == LID), sys.particles), " lid particles\n")
-	println(count(p->(p.type == WALL), sys.particles), " wall particles\n")
-	println(count(p->(p.type == FLUID), sys.particles), " fluid particles\n")
+function main()
+	sys = make_system()
+	out = new_pvd_file("results/cavity_flow")
 	@time for k = 0 : Int64(round(t_end/dt))
-		if (k % Int64(round(dt_frame/dt)) == 0) #save the frame
-			@printf("t = %.6e\n", k*dt)
-			save_frame!(sys, out, P, v, type)
-		end
+		apply!(sys, move!)
 		create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
 		apply!(sys, find_pressure!)
 		apply!(sys, internal_force!)
-		apply!(sys, update!)
+		apply!(sys, accelerate!)
+		if (k % Int64(round(dt_frame/dt)) == 0) #save the frame
+			t = k*dt
+			@show t
+			save_frame!(out, sys, :P, :v, :type)
+		end
+		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
 end

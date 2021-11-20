@@ -45,11 +45,11 @@ function capture_frame(sys::ParticleSystem, data::DataStorage)
 end
 
 """
-    save_frame!(sys::ParticleSystem, data::DataStorage, vars::DataField...)
+    save_frame!(data::DataStorage, sys::ParticleSystem, vars::DataField...)
 
 Inserts one time frame into a `DataStorage` that includes all `vars...` as fields.
 """
-function save_frame!(sys::ParticleSystem, data::DataStorage, vars::Symbol...)
+function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
     frame = capture_frame(sys, data)
     for var in vars
         field = ParticleField(sys, var)
