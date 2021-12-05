@@ -61,6 +61,7 @@ function make_all()
                 "structs.md",
                 "geometry.md",
                 "IO.md",
+                "grids.md"
             ],
             "Examples" => generated_examples,
         ]

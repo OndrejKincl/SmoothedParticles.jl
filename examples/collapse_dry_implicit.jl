@@ -32,7 +32,7 @@ const dr = 4.0e-3         #average particle distance (decrease to make finer sim
 const h = 2.8*dr          #size of kernel support
 const rho0 = 1000.0       #fluid density
 const g = Vec2(0.0, -9.8) #gravitational acceleration
-const mu = 8.4e-4         #dynamic viscosity
+const mu = 0.0#8.4e-4         #dynamic viscosity
 const m = dr^2*rho0       #particle mass
 
 const Lmin = 3*kernel(h,0.)/rho0*(pi - (dr/h)^2)  #free particles are those that satisfy L < Lmin
@@ -74,7 +74,7 @@ end
 Define geometry and create particles
 =#
 function make_system()
-	grid = Grid(dr, :square)
+	grid = Grid(dr, :hexagonal)
 	box = Rectangle(0., 0., box_width, box_height)
 	fluid = Rectangle(0., 0., water_column_width, water_column_height)
 	walls = BoundaryLayer(box, grid, 1.2*dr)

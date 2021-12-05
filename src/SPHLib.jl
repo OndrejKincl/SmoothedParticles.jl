@@ -36,7 +36,8 @@ export apply!,
 include("grids.jl")
 export Grid,
        Squaregrid,
-       Hexagrid
+       Hexagrid,
+       NoisyGrid
 
 include("geometry.jl")
 export generate_particles!, 

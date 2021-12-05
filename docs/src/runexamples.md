@@ -17,5 +17,3 @@ In order to run `ExampleXXX`, peform the following steps:
 
 Due to the encapsulation into modules, you can load as many examples as you like.
 
-If you want to modifiy the example, consider using `Revise.jl` and `includet`. 
-

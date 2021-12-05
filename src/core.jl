@@ -94,7 +94,11 @@ end
 
 Apply a binary operator `action!(p::T, q::T, r::Float64)` between any two
 neighbouring particles `p`, `q` in `sys::ParticleSystem{T}`. Value `r` is their
-mutual distance.
+mutual distance. This excludes particle pairs with distance greater than `sys.h`.
+This has linear complexity in number of particles and runs in parallel.
+
+!!! warning "Warning"
+    Modifying second particle `q` within `action!` can lead to race condition, so do not do this. Also, make sure that result will not depend on the order of particle evaluation, which is implementation-specific.
 """
 function apply_binary!(sys::ParticleSystem, action!::Function)
 	Threads.@threads for p in sys.particles
@@ -106,7 +110,8 @@ end
 	apply_unary!(sys::ParticleSystem, action!::Function)
 
 Apply a unary operator `action!(p::T)` on every particle `p` in
-`sys::ParticleSystem{T}`.
+`sys::ParticleSystem{T}`. 
+This has linear complexity in number of particles and runs in parallel.
 """
 function apply_unary!(sys::ParticleSystem, action!::Function)
 	Threads.@threads for p in sys.particles
@@ -243,7 +248,7 @@ end
 				if ismissing(q)
 					break
 				end
-				r = sqrt((x[1] - q.x[1])^2 + (x[2] - q.x[2])^2)
+				r = norm(p.x - q.x)
 				if (r > sys.h)
 					continue
 				end

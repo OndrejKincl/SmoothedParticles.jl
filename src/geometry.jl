@@ -9,15 +9,24 @@ function is_inside(p::AbstractParticle, s::Shape)::Bool
 end
 
 """
-    Rectangle() <: Shape
+    Rectangle(x1_min, x2_min, x1_max, x2_max) <: Shape
 
-Define a rectangle as a cartesian product of two intervals.
+Define a rectangle by specifying bottom left and top right corner.
 """
 struct Rectangle <: Shape
     x1_min::Float64
     x2_min::Float64
     x1_max::Float64
     x2_max::Float64
+    Rectangle(x1_min::Float64, x2_min::Float64, x1_max::Float64, x2_max::Float64) = begin
+        if (x1_min > x1_max) || (x2_min > x2_max)
+            @warn("Degenerate shape detected!")
+        end
+        if isinf(x1_min) || isinf(x1_max) || isinf(x2_min) || isinf(x2_max)
+            @error("Unbounded shape detected! Please, do not make infinitly big shapes.")
+        end
+        return new(x1_min, x2_min, x1_max, x2_max)
+    end
 end
 
 function is_inside(x1::Float64, x2::Float64, r::Rectangle)::Bool
@@ -38,7 +47,9 @@ struct Circle <: Shape
     x2::Float64
     r::Float64
     Circle(x1::Float64, x2::Float64, r::Float64) = begin
-        @assert(r > 0.0, "radius of a circle must be positive")
+        if r <= 0.0
+            @warn("Degenerate circle definition (r <= 0)!")
+        end
         return new(x1,x2,r)
     end
 end
@@ -63,7 +74,12 @@ struct Ellipse <: Shape
     r1::Float64
     r2::Float64
     Ellipse(x1::Float64, x2::Float64, r1::Float64, r2::Float64) = begin
-        @assert(r1 > 0.0 && r2 > 0.0, "semi-major & semi-minor axes must be positive")
+        if r1 <= 0.
+            @warn("Degenerate ellipse definition (r1 <= 0)!")
+        end
+        if r2 <= 0.
+            @warn("Degenerate ellipse definition (r2 <= 0)!")
+        end
         return new(x1, x2, r1, r2)
     end
 end
@@ -77,16 +93,18 @@ function boundarybox(e::Ellipse)::Rectangle
 end
 
 """
-    Polygon(v::Tuple{Float64, Float64}...) <: Shape
+    Polygon(xs::Vec2... <: Shape
 
 Define a polygon by specifying all vortices.
 """
 struct Polygon <: Shape
     xs::Vector{Vec2}
     Polygon(xs::Vec2...) = begin
-        degree = length(v)
-        @assert(degree > 2, "number of polygon vortices must be > 2")
-        return new(xs)
+        degree = length(xs)
+        if degree <= 2
+            @warn("Degenerate polygon definition (degree <= 2)!")
+        end
+        return new([x for x in xs])
     end
 end
 
@@ -108,18 +126,20 @@ function is_inside(x1::Float64, x2::Float64, p::Polygon)::Bool
     #Exterior:  0
     #Relies on round(x) rounding half-integers to nearest even number
     winding2 = 0
-    for k in 2:(length(xs) - 1)
+    for k in 2:(length(p.xs) - 1)
         winding2 += Int64(round((
-          sign((p.xs[k+1][1] - p.xs[k  ][1])*(x2 - p.xs[k  ][2]) - (p.xs[k+1][2] - p.x2[k  ][2])*(x1 - p.xs[k  ][1]))
-        + sign((p.xs[1  ][1] - p.xs[k+1][1])*(x2 - p.xs[k+1][2]) - (p.xs[1  ][2] - p.x2[k+1][2])*(x1 - p.xs[k+1][1]))
-        + sign((p.xs[k  ][1] - p.xs[1  ][1])*(x2 - p.xs[1  ][2]) - (p.xs[k  ][2] - p.x2[1  ][2])*(x1 - p.xs[1  ][1]))
+          sign((p.xs[k+1][1] - p.xs[k  ][1])*(x2 - p.xs[k  ][2]) - (p.xs[k+1][2] - p.xs[k  ][2])*(x1 - p.xs[k  ][1]))
+        + sign((p.xs[1  ][1] - p.xs[k+1][1])*(x2 - p.xs[k+1][2]) - (p.xs[1  ][2] - p.xs[k+1][2])*(x1 - p.xs[k+1][1]))
+        + sign((p.xs[k  ][1] - p.xs[1  ][1])*(x2 - p.xs[1  ][2]) - (p.xs[k  ][2] - p.xs[1  ][2])*(x1 - p.xs[1  ][1]))
         )/2))
     end
-    for k in 1:length(xs)
-        if p.x1[k] == x1 && p.x2[k] == x2
+    
+    for k in 1:length(p.xs)
+        if p.xs[k] == Vec2(x1,x2)
             winding2 = NaN
         end
     end
+    
     return !(winding2 == 0)
 end
 
@@ -223,7 +243,9 @@ struct BoundaryLayer <: Shape
     xs::Vector{Vec2}
     width::Float64
     BoundaryLayer(s::Shape, grid::Grid, width::Float64) = begin
-        @assert(width > 0., "third argument must be positive")
+        if width <= 0.
+            @warn("Degenerate boundary layer definition (width <= 0)!")
+        end
         xs = covering(grid, s)
         return new(s, xs, width)
     end
@@ -258,15 +280,13 @@ Base.:*(s1::Shape, s2::Shape) = BooleanIntersection(s1, s2)
 
 """
     generate_particles!(sys::ParticleSystem,
+                        grid::Grid,
                         geometry::Shape,
-                        constructor::Function;
-                        dr::Float64 = sys.dr,
-                        symmetry::String = default_symmetry)
+                        constructor::Function)
 
-Create particles using `constructor(x::Vec2)::AbstractParticle` at every point
-inside a given shape. The density of particles will be ``\\frac{1}{\\text{d}r^2}``.
+Create particles using `constructor(x::Vec2)::AbstractParticle` at every `grid` point
+inside a given shape.
 
-Supported values of `symmetry` are `"hexagonal"` or `"square"`.
 """
 function generate_particles!(sys::ParticleSystem, grid::Grid, geometry::Shape, constructor::Function)
     xs = covering(grid, geometry)

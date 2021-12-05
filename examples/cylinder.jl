@@ -50,7 +50,7 @@ const P0 = 1.2          #anti-clump term
 #temporal parameters
 const dt = 0.2*h/c      #time step
 const dt_frame = 0.02    #how often data is saved
-const t_end = 1.0      #end of simulation
+const t_end = 5.0      #end of simulation
 const t_acc = 0.5      #time to accelerate to full speed
 
 #particle types

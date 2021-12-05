@@ -28,13 +28,14 @@ Supertype for geometrical shapes.
 abstract type Shape end
 
 """
-	ParticleSystem(T::Type; h::Float64)
+	ParticleSystem(T::Type, domain::Shape, h::Float64)
 
-An immutable struct that contains all vital information about the simulation.
+Struct that contains all vital information about the simulation.
 The constructor specifies that:
 * the simulation will use particles of type `T <: AbstractParticle`,
+* Particles outside of the 'domain' can be disregarded (and will be automatically removed).
 * Particles are considered neighbours if their distance is less than `h`.
-* 
+Please, do not make 'domain' too large. This will negative impact on the performance.
 """
 struct ParticleSystem{T <: AbstractParticle}
 	h::Float64
@@ -87,6 +88,10 @@ end
 
 Creates an abstract array whose ``n``-th element is the value of scalar `varS`
 of ``n``-th particle in `sys`.
+
+!!! warning "Warning"
+    The indentity of ``n``-th particle in `ParticleSystem` may change
+    when particles are added or removed.
 """
 struct ParticleField <: AbstractArray{Float64, 1}
 	sys::ParticleSystem
