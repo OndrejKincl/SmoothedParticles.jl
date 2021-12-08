@@ -123,7 +123,7 @@ end
 function energy(p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	potential = -m*dot(g, p.x)
-	internal =  0.25*m*c^2*(p.rho - rho0)^2/rho0^2
+	internal =  0.5*m*c^2*(p.rho - rho0)^2/rho0^2
 	return kinetic + potential + internal
 end
 
@@ -133,23 +133,23 @@ Put everything into a time loop
 function main()
 	sys = make_system()
 	out = new_pvd_file("results/collapse_dry")
-    #a modified Verlet scheme
+	#a modified Verlet scheme
 	for k = 0 : Int64(round(t_end/dt))
-        #move particles
-        apply!(sys, move!)
-        create_cell_list!(sys)
+	#move particles
+		apply!(sys, move!)
+		create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
 		apply!(sys, find_pressure!)
-        apply!(sys, internal_force!)
-        apply!(sys, accelerate!)
-        #save data at selected frames
-        if (k %  Int64(round(dt_frame/dt)) == 0)
-            @printf("t = %.6e\n", k*dt)
+		apply!(sys, internal_force!)
+		apply!(sys, accelerate!)
+		#save data at selected frames
+		if (k %  Int64(round(dt_frame/dt)) == 0)
+			@printf("t = %.6e\n", k*dt)
 			@printf("E = %.6e\n", sum(energy, sys.particles))
 			@printf("\n")
-            save_frame!(out, sys, :v, :P, :rho, :type)
-        end
-        #accelerate
+			save_frame!(out, sys, :v, :P, :rho, :type)
+		end
+		#accelerate
 		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
