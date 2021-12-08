@@ -47,6 +47,10 @@ const dt_frame = t_end/100
 const FLUID = 0.
 const WALL = 1.
 
+#=
+Declare variables to be stored in a Particle
+=#
+
 mutable struct Particle <: AbstractParticle
 	x::Vec2 #position
 	v::Vec2 #velocity

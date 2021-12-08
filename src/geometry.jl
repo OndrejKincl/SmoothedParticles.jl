@@ -93,7 +93,7 @@ function boundarybox(e::Ellipse)::Rectangle
 end
 
 """
-    Polygon(xs::Vec2... <: Shape
+    Polygon(xs::Vec2...) <: Shape
 
 Define a polygon by specifying all vortices.
 """
@@ -231,12 +231,11 @@ function boundarybox(sp::Specification)::Rectangle
 end
 
 """
-    BoundaryLayer(s::Shape, dr::Float64, width::Float64; symmetry = default_symmetry) <: Shape
+    BoundaryLayer(s::Shape, grid::Grid, width::Float64) <: Shape
 
-Creates a layer of certain `width` around shape `s`. This requires some details
-about the discretization, namely `dr` (characterstic length) and `symmetry`.
-
-Supported values of `symmetry` are `"hexagonal"` or `"square"`.
+Creates a layer of certain `width` around shape `s`. More specifically, a point is inside
+boundary layer if it is not in `s` and at the same time has distance less than `width` to
+at least one point on `grid` in `s`.
 """
 struct BoundaryLayer <: Shape
     s::Shape

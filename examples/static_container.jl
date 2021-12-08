@@ -48,12 +48,16 @@ const t_end = 0.5
 const FLUID = 0.
 const WALL = 1.
 
+#=
+Declare variables to be stored in a Particle
+=#
+
 mutable struct Particle <: AbstractParticle
-	x::Vec2
-	v::Vec2
-	a::Vec2
-	rho::Float64
-	type::Float64
+	x::Vec2 #position
+	v::Vec2 #velocity
+	a::Vec2 #acceleration
+	rho::Float64 #density
+	type::Float64 #particle type
 	Particle(x::Vec2, type::Float64) = new(
 		x,
 		zero(Vec2),

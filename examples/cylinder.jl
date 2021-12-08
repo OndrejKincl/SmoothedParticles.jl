@@ -59,15 +59,18 @@ const WALL = 1.
 const INFLOW = 2.
 const OBSTACLE = 3.
 
+#=
+Declare variables to be stored in a Particle
+=#
 
 mutable struct Particle <: AbstractParticle
-    x::Vec2
-    v::Vec2
-    a::Vec2
-    rho::Float64
-    Drho::Float64
-    P::Float64
-    type::Float64
+    x::Vec2 #position
+    v::Vec2 #velocity
+    a::Vec2 #acceleration
+    rho::Float64 #density
+    Drho::Float64 #rate of density
+    P::Float64 #pressure
+    type::Float64 #particle type
     Particle(x,type) = begin
         return new(x, zero(Vec2), zero(Vec2), rho0, 0., 0., type)
     end
