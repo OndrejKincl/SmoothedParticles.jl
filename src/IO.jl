@@ -1,4 +1,5 @@
 using WriteVTK
+using VTKDataIO
 
 """
     DataStorage
@@ -83,4 +84,30 @@ function attribute_type(type::DataType, var::Symbol)
             " cannot be exported to VTK because it does not exist")
     end
     return fieldtypes(type)[ind]
+end
+
+"""
+    import_particles!(sys::ParticleSystem, path::String, particle_constructor::Function)
+
+Imports particles from a vtk file in 'path' using 'constructor'.
+"""
+function read_vtk!(sys::ParticleSystem, path::String, particle_constructor::Function)
+    input = read_vtk(path)
+    (_, N) = size(input.point_coords)
+    resize!(sys.particles, N)
+    for i in 1:N
+        x1 = input.point_coords[1,i]
+        x2 = input.point_coords[2,i]
+        sys.particles[i] = particle_constructor(Vec2(x1, x2))
+        for field in fieldnames(sys.particle_type)
+            key = string(field)
+            type = attribute_type(sys.particle_type, field)
+            if type <: Number && haskey(input.point_data, key)
+                setproperty!(sys.particles[i], field, input.point_data[key][i])
+            end
+            if type == Vec2 && haskey(input.point_data, key)
+                setproperty!(sys.particles[i], field, Vec2(input.point_data[key][1,i], input.point_data[key][2,i]))
+            end
+        end
+    end
 end

@@ -3,6 +3,7 @@ import WriteVTK
 import SparseArrays
 import StaticArrays
 import Match
+import VTKDataIO
 
 include("structs.jl")
 export AbstractParticle, 
@@ -56,6 +57,7 @@ export generate_particles!,
 include("IO.jl")
 export save_frame!, 
        new_pvd_file,
-       save_pvd_file
+       save_pvd_file,
+       read_vtk!
 
 end
