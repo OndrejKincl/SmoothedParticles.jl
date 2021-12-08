@@ -20,11 +20,13 @@ jobs:
           using Pkg; 
           Pkg.develop(PackageSpec(path=pwd())); 
           Pkg.instantiate();
+          Pkg.add("VTKDataIO");
           Pkg.add("WriteVTK");
           Pkg.add("Match");
           Pkg.add("Literate");
           Pkg.add("Documenter");
-          Pkg.add("SparseArrays");'
+          Pkg.add("SparseArrays");
+          Pkg.add("StaticArrays");'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
