@@ -1,15 +1,16 @@
 module SPHLib
 import WriteVTK
 import SparseArrays
+import StaticArrays
 import Match
+import VTKDataIO
 
 include("structs.jl")
 export AbstractParticle, 
        ParticleSystem, 
-       ScalarField, 
-       VectorField, 
-       DataField, 
-       @define_particle
+       ParticleField, 
+       DataField,
+       Vec2,Mat2
 
 include("kernels.jl")
 export wendland2, 
@@ -29,7 +30,15 @@ export apply!,
        create_cell_list!, 
        dist, 
        assemble_matrix, 
-       assemble_vector
+       assemble_vector,
+       dot,
+       norm
+
+include("grids.jl")
+export Grid,
+       Squaregrid,
+       Hexagrid,
+       NoisyGrid
 
 include("geometry.jl")
 export generate_particles!, 
@@ -43,15 +52,12 @@ export generate_particles!,
        BooleanDifference, 
        Specification, 
        BoundaryLayer, 
-       is_inside, 
-       snap_to_grid
+       is_inside
 
 include("IO.jl")
 export save_frame!, 
        new_pvd_file,
-       save_pvd_file, 
-       capture_frame 
-       #write_vtk, 
-       #read_vtk!
+       save_pvd_file,
+       read_vtk!
 
 end

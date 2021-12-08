@@ -28,12 +28,12 @@ const kernel = spline23
 const Dkernel = Dspline23
 const rDkernel = rDspline23
 
-const dr = 4.0e-3       #average particle distance (decrease to make finer simulation)
-const h = 2.8*dr        #size of kernel support
-const rho0 = 1000.0     #fluid density
-const g = 9.8           #gravitational acceleration
-const mu = 8.4e-4       #dynamic viscosity
-const m = dr^2*rho0     #particle mass
+const dr = 4.0e-3         #average particle distance (decrease to make finer simulation)
+const h = 2.8*dr          #size of kernel support
+const rho0 = 1000.0       #fluid density
+const g = Vec2(0.0, -9.8) #gravitational acceleration
+const mu = 0.0#8.4e-4         #dynamic viscosity
+const m = dr^2*rho0       #particle mass
 
 const Lmin = 3*kernel(h,0.)/rho0*(pi - (dr/h)^2)  #free particles are those that satisfy L < Lmin
 
@@ -42,7 +42,7 @@ const water_column_width = 0.142
 const water_column_height = 0.293
 const box_height = 0.35
 const box_width = 0.584
-const nlayers = 3 #number of wall layers
+const nlayers = 3.5 #number of wall layers
 const wall_width = nlayers*dr
 
 ##temporal parameters
@@ -56,113 +56,106 @@ const  WALL = 1.
 const DUMMY = 2.
 
 #=
-Declare fields (unknowns)
-
-* `Dx`, `Dy` = velocity
-* `DDx`, `DDy` = acceleration
-* `type` = particle type
-* `P` = pressure
-* `div` = divergence of velocity
-* `L` = value determining whether particle lies on a free surface
+Declare variables to be stored in a Particle
 =#
 
-SPHLib.@define_particle Particle Dx Dy DDx DDy type P div L
+mutable struct Particle <: AbstractParticle
+	x::Vec2 #position
+	v::Vec2 #velocity
+	a::Vec2 #acceleration
+	P::Float64 #pressure
+	div::Float64 #divergence of velocity
+	L::Float64 #free surface identier
+	type::Float64 #particle type
+	Particle(x, type) = new(
+		x, zero(Vec2), zero(Vec2),
+		0., 0., 0.,
+		type
+	)
+end
 
 #=
 Define geometry and create particles
 =#
-function main()
-
-	container = Rectangle((0., box_width), (0., box_height))
-	water_column = Rectangle((0., water_column_width), (0., water_column_height))
-	wall = BoundaryLayer(container, dr, dr)
-	wall = Specification(wall, (x,y) -> (y < box_height))
-	dummy_wall = BoundaryLayer(container, dr, wall_width)
-	dummy_wall = Specification(dummy_wall, (x,y) -> (y < box_height))
-	dummy_wall = BooleanDifference(dummy_wall, wall)
-
-	xrange = (-wall_width, box_width + wall_width)
-	yrange = (-wall_width, 3*box_height)
-	sys = ParticleSystem(Particle, xrange, yrange, dr, h)
-	generate_particles!(sys, water_column, (x,y) -> Particle(x, y; type = FLUID))
-	generate_particles!(sys, 		 wall, (x,y) -> Particle(x, y; type =  WALL))
-	generate_particles!(sys,   dummy_wall, (x,y) -> Particle(x, y; type = DUMMY))
+function make_system()
+	grid = Grid(dr, :hexagonal)
+	box = Rectangle(0., 0., box_width, box_height)
+	fluid = Rectangle(0., 0., water_column_width, water_column_height)
+	walls = BoundaryLayer(box, grid, 1.2*dr)
+	walls = Specification(walls, x -> (x[2] < box_height))
+	dummy = BoundaryLayer(box, grid, nlayers*dr) - walls
+	dummy = Specification(dummy, x -> (x[2] < box_height))
+	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height)
+	sys = ParticleSystem(Particle, domain, h)
+	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
+	generate_particles!(sys, grid, walls, x -> Particle(x, WALL))
+	generate_particles!(sys, grid, dummy, x -> Particle(x, DUMMY))
+	return sys
+end
 
 #=
 Particle interactions
 =#
 
-	function initialize!(p::Particle)
-		if p.type == FLUID
-			p.x += dt*p.Dx
-			p.y += dt*p.Dy
-			##gravity
-			p.Dy += -g*dt
-		end
-		p.div = 0.
-		p.L = 0.
+function initialize!(p::Particle)
+	if p.type == FLUID
+		p.x += dt*p.v
+		p.v += dt*g
 	end
+	p.div = 0.
+	p.L = 0.
+end
 
-	function viscous_force!(p::Particle, q::Particle, r::Float64)
-		temp = 2.0*m*mu*rDkernel(h,r)/rho0^2
-		p.DDx += temp*(p.Dx - q.Dx)
-		p.DDy += temp*(p.Dy - q.Dy)
-	end
+@inbounds function viscous_force!(p::Particle, q::Particle, r::Float64)
+	p.a += 2.0*m*mu*rDkernel(h,r)/rho0^2*(p.v - q.v)
+end
 
-	function find_div_and_L!(p::Particle, q::Particle, r::Float64)
-		p.div += -((p.x - q.x)*(p.Dx - q.Dx) + (p.y - q.y)*(p.Dy - q.Dy))*m*rDkernel(h,r)/rho0
-		p.L += -2.0*m*rDkernel(h,r)/rho0^2
-	end
+function find_div_and_L!(p::Particle, q::Particle, r::Float64)
+	p.div += -SPHLib.dot(p.x - q.x, p.v - q.v)*m*rDkernel(h,r)/rho0
+	p.L += -2.0*m*rDkernel(h,r)/rho0^2
+end
 
-	@fastmath function internal_force!(p::Particle, q::Particle, r::Float64)
-		temp =  (p.P + q.P)/rho0^2
-		temp *= m*rDkernel(h,r)
-		p.DDx += -temp*(p.x - q.x)
-		p.DDy += -temp*(p.y - q.y)
-	end
+@inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
+	p.a -= m*rDkernel(h,r)*(p.P + q.P)/rho0^2*(p.x - q.x)
+end
 
-	function accelerate!(p::Particle)
-		if p.type == FLUID
-			p.Dx += dt*p.DDx
-			p.Dy += dt*p.DDy
-		end
-		p.DDx = 0.
-		p.DDy = 0.
+function accelerate!(p::Particle)
+	if p.type == FLUID
+		p.v += dt*p.a
 	end
+	p.a = zero(Vec2)
+end
 
 #=
 Functions to build the linear system
 =#
 
-	@fastmath function minus_laplace(p::Particle, q::Particle, r::Float64)::Float64
-		if p == q
-			return p.type == DUMMY ? p.L : max(p.L, Lmin)
-		end
-		return 2.0*m*rDkernel(h,r)/rho0^2
+function minus_laplace(p::Particle, q::Particle, r::Float64)::Float64
+	if p == q
+		return p.type == DUMMY ? p.L : max(p.L, Lmin)
 	end
+	return 2.0*m*rDkernel(h,r)/rho0^2
+end
 
-	@fastmath function rhs(p::Particle)::Float64
-		return -p.div/dt
-	end
+function rhs(p::Particle)::Float64
+	return -p.div/dt
+end
 
 
 #=
 Time iteration
 =#
-
-	v = VectorField(sys, (:Dx, :Dy), "velocity")
-	P = ScalarField(sys, :P, "pressure")
-	type = ScalarField(sys, :type, "type")
-	out_pvd = new_pvd_file("collapse_dry_implicit")
-	out_txt = open("collapse_dry_implicit/data.txt", "w")
-	N0 = length(sys.particles)
-
+function main()
+	sys = make_system()
+	out_pvd = new_pvd_file("results/collapse_dry_implicit")
+	out_txt = open("results/collapse_dry_implicit/data.txt", "w")
+	P = ParticleField(sys, :P)
 	for k = 0 : Int64(round(t_end/dt))
 		if (k %  Int64(round(dt_frame/dt)) == 0)
 			@printf("t = %.6e\n", k*dt)
-			save_frame!(sys, out_pvd, v, P, type)
-			dimless_time = string(k*dt*sqrt(g/water_column_height))
-			leading_edge = maximum(p -> (p.type == FLUID ? p.x - water_column_width : 0.), sys.particles)/water_column_height
+			save_frame!(out_pvd, sys, :v, :P, :type)
+			dimless_time = string(k*dt*sqrt(-g[2]/water_column_height))
+			leading_edge = maximum(p -> (p.type == FLUID ? p.x[1] - water_column_width : 0.), sys.particles)/water_column_height
 			write(out_txt, string(dimless_time)*" "*string(leading_edge)*"\n")
 		end
 		apply!(sys, initialize!)

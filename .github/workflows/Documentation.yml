@@ -24,7 +24,6 @@ jobs:
           Pkg.add("Match");
           Pkg.add("Literate");
           Pkg.add("Documenter");
-          Pkg.add("SparseArrays");
           Pkg.add("StaticArrays");
           Pkg.add("SparseArrays");
           Pkg.add("VTKDataIO");'
