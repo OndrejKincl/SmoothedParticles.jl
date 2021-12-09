@@ -55,6 +55,7 @@ function make_all()
         format = Documenter.HTML(prettyurls = false),
         pages=[
             "Home"=>"index.md",
+            "Examples" => generated_examples,
             "API Documentation" => [
                 "core.md",
                 "kernels.md",
@@ -63,7 +64,6 @@ function make_all()
                 "IO.md",
                 "grids.md"
             ],
-            "Examples" => generated_examples,
         ]
     )
 end

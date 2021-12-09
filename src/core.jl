@@ -169,13 +169,14 @@ end
 """
 	assemble_matrix(sys::ParticleSystem, func::Function)::SparseMatrixCSC{Float64}
 
-For given function `func(p::T, q::T)::Float64 where T <: AbstractParticle`, assemble a sparse matrix ``\\mathbb{A}``, such that
+For given function `func(p::T, q::T)::Float64` where `T <: AbstractParticle`, assemble a sparse matrix ``\\mathbb{A}``, such that
 
 ```math
-	A_{ij} = \\text{func}(p_i, p_j),
+	A_{ij} = \\text{func}(p_i, p_j, r_{ij}),
 ```
 
-where ``p_i``, ``p_j`` are respectively the i-th and j-th particle in `sys::ParticleSystem{T}`.
+where ``p_i``, ``p_j`` are respectively the i-th and j-th particle in `sys::ParticleSystem{T}` and ``r_{ij}`` is their mutual distance.
+This assumes that ``A_{ij} = 0`` for ``r_{ij} > h``.
 """
 @inline function assemble_matrix(sys::ParticleSystem, func::Function)::SparseMatrixCSC{Float64}
 	N = length(sys.particles)
@@ -239,6 +240,15 @@ not occupied by a particle.
 	return out
 end
 
+"""
+	sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
+
+For given function `func(p::T, q::T, r::Float64)::Float64 where T <: AbstractParticle` and particle `p` it returns the sum
+
+```math
+	\\sum_{q \\in \\text{sys.particles}} \\text{func}(p, q, r).
+```
+"""
 @inline function sum(sys::ParticleSystem, func::Function, p::AbstractParticle)::Float64
 	out = 0.0
 	for k in 0:8

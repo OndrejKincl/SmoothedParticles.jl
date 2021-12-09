@@ -52,7 +52,11 @@ const t_end = 0.5
 const FLUID = 0.
 const  WALL = 1.
 const DUMMY = 2.
+````
 
+Declare variables to be stored in a Particle
+
+````julia
 mutable struct Particle <: AbstractParticle
 	x::Vec2 #position
 	v::Vec2 #velocity
@@ -60,7 +64,7 @@ mutable struct Particle <: AbstractParticle
 	P::Float64 #pressure
 	div::Float64 #divergence of velocity
 	L::Float64 #free surface identier
-	type::Float64
+	type::Float64 #particle type
 	Particle(x, type) = new(
 		x, zero(Vec2), zero(Vec2),
 		0., 0., 0.,

@@ -32,15 +32,19 @@ const t_end = 2000.            #end of simulation
 const FLUID = 0.
 const WALL = 1.
 const LID = 2.
+````
 
+Declare variables to be stored in a Particle
+
+````julia
 mutable struct Particle <: AbstractParticle
-	x::Vec2
-	v::Vec2
-	a::Vec2
-	rho::Float64
-	Drho::Float64
-	P::Float64
-	type::Float64
+	x::Vec2	#position
+	v::Vec2 #velocity
+	a::Vec2 #acceleratation
+	rho::Float64 #density
+	Drho::Float64 #rate of density
+	P::Float64 #pressure
+	type::Float64 #particle type
 	Particle(x::Vec2, type::Float64) = begin
 		v1 = (type == LID ? vlid : 0.)
 		return new(x, Vec2(v1, 0.0), zero(Vec2), rho0, 0., 0., type)
