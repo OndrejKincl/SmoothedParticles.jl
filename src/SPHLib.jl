@@ -3,19 +3,23 @@ import WriteVTK
 import SparseArrays
 import StaticArrays
 import Match
-import VTKDataIO
 
 include("structs.jl")
 export AbstractParticle, 
        ParticleSystem, 
        ParticleField, 
        DataField,
-       Vec2,Mat2
+       RealVector,
+       RealMatrix,
+       VECX, VECY, VECZ, VEC0, MAT0, MAT1
 
 include("kernels.jl")
 export wendland2, 
        Dwendland2, 
        rDwendland2, 
+       wendland3, 
+       Dwendland3, 
+       rDwendland3, 
        spline24, 
        Dspline24, 
        rDspline24,
@@ -38,7 +42,7 @@ include("grids.jl")
 export Grid,
        Squaregrid,
        Hexagrid,
-       NoisyGrid
+       CubicGrid
 
 include("geometry.jl")
 export generate_particles!, 
@@ -46,7 +50,8 @@ export generate_particles!,
        Rectangle, 
        Circle, 
        Ellipse, 
-       Polygon, 
+       Ball,
+       Box,
        BooleanUnion, 
        BooleanIntersection, 
        BooleanDifference, 
@@ -57,7 +62,6 @@ export generate_particles!,
 include("IO.jl")
 export save_frame!, 
        new_pvd_file,
-       save_pvd_file,
-       read_vtk!
+       save_pvd_file
 
 end

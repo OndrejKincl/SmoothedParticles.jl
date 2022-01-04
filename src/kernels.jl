@@ -145,3 +145,52 @@ Integrates to unity.
 	# 140/pi ≐ 44.563384065730695
 	return -44.563384065730695*((1.0 - x)^3)/h^4
 end
+
+"""
+    wendland3(h::Float64, r::Float64)::Float64
+
+Returns ``w(r)``, the value of a 3d quintic Wendland kernel ``w`` with support radius `h`.
+Integrates to unity.
+
+"""
+@fastmath function wendland3(h::Float64, r::Float64)::Float64
+	x = r/h
+	if (x > 1.0)
+		return 0.0
+	end
+	# 21/2pi ≐ 3.3422538049298023
+	return 3.3422538049298023*((1.0 - x)^4)*(1.0 + 4.0*x)/h^3
+end
+
+"""
+    Dwendland3(h::Float64, r::Float64)::Float64
+
+Returns ``\\frac{\\text{d}w}{\\text{d}r}(r)``, the first derivative of a 3d quintic Wendland kernel ``w`` with support radius `h`.
+Integrates to unity.
+
+"""
+@fastmath function Dwendland3(h::Float64, r::Float64)::Float64
+	x = r/h
+	if (x > 1.0)
+		return 0.0
+	end
+	# 210/pi ≐ 66.84507609859604
+	return -66.84507609859604*x*((1.0 - x)^3)/h^4
+end
+
+"""
+    rDwendland3(h::Float64, r::Float64)::Float64
+
+Returns ``\\frac{1}{r}\\,\\frac{\\text{d}w}{\\text{d}r}(r)``, the reduced first derivative of a 3d quintic Wendland kernel ``w`` with support radius `h`.
+Integrates to unity.
+
+"""
+@fastmath function rDwendland3(h::Float64, r::Float64)::Float64
+	x = r/h
+	if (x > 1.0)
+		return 0.0
+	end
+	# 210/pi ≐ 66.84507609859604
+	return -66.84507609859604*((1.0 - x)^3)/h^5
+end
+

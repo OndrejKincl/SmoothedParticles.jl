@@ -31,8 +31,8 @@ const rDkernel = rDspline23
 const dr = 4.0e-3         #average particle distance (decrease to make finer simulation)
 const h = 2.8*dr          #size of kernel support
 const rho0 = 1000.0       #fluid density
-const g = Vec2(0.0, -9.8) #gravitational acceleration
-const mu = 0.0#8.4e-4         #dynamic viscosity
+const g = -9.8*VECY       #gravitational acceleration
+const mu = 0.0#8.4e-4     #dynamic viscosity
 const m = dr^2*rho0       #particle mass
 
 const Lmin = 3*kernel(h,0.)/rho0*(pi - (dr/h)^2)  #free particles are those that satisfy L < Lmin
@@ -60,15 +60,15 @@ Declare variables to be stored in a Particle
 =#
 
 mutable struct Particle <: AbstractParticle
-	x::Vec2 #position
-	v::Vec2 #velocity
-	a::Vec2 #acceleration
+	x::RealVector #position
+	v::RealVector #velocity
+	a::RealVector #acceleration
 	P::Float64 #pressure
 	div::Float64 #divergence of velocity
 	L::Float64 #free surface identier
 	type::Float64 #particle type
 	Particle(x, type) = new(
-		x, zero(Vec2), zero(Vec2),
+		x, VEC0, VEC0,
 		0., 0., 0.,
 		type
 	)
@@ -85,7 +85,7 @@ function make_system()
 	walls = Specification(walls, x -> (x[2] < box_height))
 	dummy = BoundaryLayer(box, grid, nlayers*dr) - walls
 	dummy = Specification(dummy, x -> (x[2] < box_height))
-	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height)
+	domain = Rectangle(-nlayers*dr, -nlayers*dr, 2*box_width, 3*box_height)
 	sys = ParticleSystem(Particle, domain, h)
 	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
 	generate_particles!(sys, grid, walls, x -> Particle(x, WALL))
@@ -123,7 +123,7 @@ function accelerate!(p::Particle)
 	if p.type == FLUID
 		p.v += dt*p.a
 	end
-	p.a = zero(Vec2)
+	p.a = VEC0
 end
 
 #=
@@ -153,6 +153,7 @@ function main()
 	for k = 0 : Int64(round(t_end/dt))
 		if (k %  Int64(round(dt_frame/dt)) == 0)
 			@printf("t = %.6e\n", k*dt)
+			println("# of particles = ", length(sys.particles))
 			save_frame!(out_pvd, sys, :v, :P, :type)
 			dimless_time = string(k*dt*sqrt(-g[2]/water_column_height))
 			leading_edge = maximum(p -> (p.type == FLUID ? p.x[1] - water_column_width : 0.), sys.particles)/water_column_height
@@ -160,7 +161,7 @@ function main()
 		end
 		apply!(sys, initialize!)
 		create_cell_list!(sys)
-		apply!(sys, viscous_force!)
+		#apply!(sys, viscous_force!)
 
 		##assemble linear system and solve for pressure
 		apply!(sys, find_div_and_L!)

@@ -1,11 +1,28 @@
 using Match
 
-function is_inside(x::Vec2, s::Shape)::Bool
-    return is_inside(x[1], x[2], s)
+function is_inside(p::AbstractParticle, s::Shape)::Bool
+    return is_inside(p.x, s)
 end
 
-function is_inside(p::AbstractParticle, s::Shape)::Bool
-    return is_inside(p.x[1], p.x[2], s)
+struct Box <: Shape
+    x1_min::Float64
+    x2_min::Float64
+    x3_min::Float64
+    x1_max::Float64
+    x2_max::Float64
+    x3_max::Float64
+end
+
+function is_inside(x::RealVector, b::Box)::Bool
+    return (
+        b.x1_min <= x[1] <= b.x1_max &&
+        b.x2_min <= x[2] <= b.x2_max &&
+        b.x3_min <= x[3] <= b.x3_max
+    )
+end
+
+function boundarybox(b::Box)::Box
+    return b    
 end
 
 """
@@ -13,28 +30,8 @@ end
 
 Define a rectangle by specifying bottom left and top right corner.
 """
-struct Rectangle <: Shape
-    x1_min::Float64
-    x2_min::Float64
-    x1_max::Float64
-    x2_max::Float64
-    Rectangle(x1_min::Float64, x2_min::Float64, x1_max::Float64, x2_max::Float64) = begin
-        if (x1_min > x1_max) || (x2_min > x2_max)
-            @warn("Degenerate shape detected!")
-        end
-        if isinf(x1_min) || isinf(x1_max) || isinf(x2_min) || isinf(x2_max)
-            @error("Unbounded shape detected! Please, do not make infinitly big shapes.")
-        end
-        return new(x1_min, x2_min, x1_max, x2_max)
-    end
-end
-
-function is_inside(x1::Float64, x2::Float64, r::Rectangle)::Bool
-    return (r.x1_min <= x1 <= r.x1_max) && (r.x2_min <= x2 <= r.x2_max)
-end
-
-function boundarybox(r::Rectangle)::Rectangle
-    return r
+function Rectangle(x1_min::Float64, x2_min::Float64, x1_max::Float64, x2_max::Float64)::Box
+    return Box(x1_min, x2_min, 0., x1_max, x2_max, 0.)
 end
 
 """
@@ -54,11 +51,11 @@ struct Circle <: Shape
     end
 end
 
-function is_inside(x1::Float64, x2::Float64, c::Circle)::Bool
-    return (x1 - c.x1)^2 + (x2 - c.x2)^2 <= c.r^2
+function is_inside(x::RealVector, c::Circle)::Bool
+    return (x[1] - c.x1)^2 + (x[2] - c.x2)^2 <= c.r^2
 end
 
-function boundarybox(c::Circle)::Rectangle
+function boundarybox(c::Circle)::Box
     return Rectangle(c.x1-c.r, c.x2-c.r, c.x1+c.r, c.x2+c.r) 
 end
 
@@ -84,63 +81,12 @@ struct Ellipse <: Shape
     end
 end
 
-function is_inside(x1::Float64, x2::Float64, e::Ellipse)::Bool
-    return ((x1 - e.x1)/e.r1)^2 + ((x2 - e.x2)/e.r2)^2 <= 1
+function is_inside(x::RealVector, e::Ellipse)::Bool
+    return ((x[1] - e.x1)/e.r1)^2 + ((x[2] - e.x2)/e.r2)^2 <= 1
 end
 
-function boundarybox(e::Ellipse)::Rectangle
+function boundarybox(e::Ellipse)::Box
     return Rectangle(e.x1-r1, e.x2-r2, e.x1+r1, e.x2+r2) 
-end
-
-"""
-    Polygon(xs::Vec2...) <: Shape
-
-Define a polygon by specifying all vortices.
-"""
-struct Polygon <: Shape
-    xs::Vector{Vec2}
-    Polygon(xs::Vec2...) = begin
-        degree = length(xs)
-        if degree <= 2
-            @warn("Degenerate polygon definition (degree <= 2)!")
-        end
-        return new([x for x in xs])
-    end
-end
-
-function boundarybox(p::Polygon)::Rectangle
-    x1_min = minimum(x -> x[1], p.xs)
-    x1_max = maximum(x -> x[1], p.xs)
-    x2_min = minimum(x -> x[2], p.xs)
-    x2_max = maximum(x -> x[2], p.xs)
-    return Rectangle(x1_min, x2_min, x1_max, x2_max) 
-end
-
-
-function is_inside(x1::Float64, x2::Float64, p::Polygon)::Bool
-    #Warning! Risky math ahead!
-    #Computes twice the winding number of any simple polygon.
-    #Interior: +2 (if counter-clockwise) or -2 (if clockwise)
-    #Edges:    +1 (if counter-clockwise) or -1 (if clockwise)
-    #Vortices:  NaN
-    #Exterior:  0
-    #Relies on round(x) rounding half-integers to nearest even number
-    winding2 = 0
-    for k in 2:(length(p.xs) - 1)
-        winding2 += Int64(round((
-          sign((p.xs[k+1][1] - p.xs[k  ][1])*(x2 - p.xs[k  ][2]) - (p.xs[k+1][2] - p.xs[k  ][2])*(x1 - p.xs[k  ][1]))
-        + sign((p.xs[1  ][1] - p.xs[k+1][1])*(x2 - p.xs[k+1][2]) - (p.xs[1  ][2] - p.xs[k+1][2])*(x1 - p.xs[k+1][1]))
-        + sign((p.xs[k  ][1] - p.xs[1  ][1])*(x2 - p.xs[1  ][2]) - (p.xs[k  ][2] - p.xs[1  ][2])*(x1 - p.xs[1  ][1]))
-        )/2))
-    end
-    
-    for k in 1:length(p.xs)
-        if p.xs[k] == Vec2(x1,x2)
-            winding2 = NaN
-        end
-    end
-    
-    return !(winding2 == 0)
 end
 
 
@@ -156,18 +102,20 @@ struct BooleanUnion <: Shape
     s2::Shape
 end
 
-function is_inside(x1::Float64, x2::Float64, u::BooleanUnion)::Bool
-    return is_inside(x1, x2, u.s1)||is_inside(x1, x2, u.s2)
+function is_inside(x::RealVector, u::BooleanUnion)::Bool
+    return is_inside(x, u.s1)||is_inside(x, u.s2)
 end
 
-function boundarybox(u::BooleanUnion)::Rectangle
+function boundarybox(u::BooleanUnion)::Box
     r1 = boundarybox(u.s1)
     r2 = boundarybox(u.s2)
     x1_min = min(r1.x1_min, r2.x1_min)
     x2_min = min(r1.x2_min, r2.x2_min)
+    x3_min = min(r1.x3_min, r2.x3_min)
     x1_max = max(r1.x1_max, r2.x1_max)
     x2_max = max(r1.x2_max, r2.x2_max)
-    return Rectangle(x1_min, x2_min, x1_max, x2_max)
+    x3_max = max(r1.x3_max, r2.x3_max)
+    return Box(x1_min, x2_min, x3_min, x1_max, x2_max, x3_max)
 end
 
 """
@@ -180,18 +128,20 @@ struct BooleanIntersection <: Shape
     s2::Shape
 end
 
-function is_inside(x1::Float64, x2::Float64, i::BooleanIntersection)::Bool
-    return is_inside(x1, x2, i.s1) && is_inside(x1, x2, i.s2)
+function is_inside(x::RealVector, i::BooleanIntersection)::Bool
+    return is_inside(x, i.s1) && is_inside(x, i.s2)
 end
 
-function boundarybox(i::BooleanIntersection)::Rectangle
+function boundarybox(i::BooleanIntersection)::Box
     r1 = boundarybox(i.s1)
     r2 = boundarybox(i.s2)
     x1_min = max(r1.x1_min, r2.x1_min)
     x2_min = max(r1.x2_min, r2.x2_min)
+    x3_min = max(r1.x3_min, r2.x3_min)
     x1_max = min(r1.x1_max, r2.x1_max)
     x2_max = min(r1.x2_max, r2.x2_max)
-    return Rectangle(x1_min, x2_min, x1_max, x2_max)
+    x3_max = min(r1.x3_max, r2.x3_max)
+    return Box(x1_min, x2_min, x3_min, x1_max, x2_max, x3_max)
 end
 
 """
@@ -204,29 +154,29 @@ struct BooleanDifference <: Shape
     s2::Shape
 end
 
-function is_inside(x1::Float64, x2::Float64, d::BooleanDifference)::Bool
-    return is_inside(x1, x2, d.s1) && !is_inside(x1, x2, d.s2)
+function is_inside(x::RealVector, d::BooleanDifference)::Bool
+    return is_inside(x, d.s1) && !is_inside(x, d.s2)
 end
 
-function boundarybox(d::BooleanDifference)::Rectangle
+function boundarybox(d::BooleanDifference)::Box
     return boundarybox(d.s1)
 end
 
 """
     Specification(s::Shape, f::Function) <: Shape
 
-Define a shape of all `(x1, x2)` in `s`, such that `f(x1,x2) == true`.
+Define a shape of all `x` in `s`, such that `f(x) == true`.
 """
 struct Specification <: Shape
     s::Shape
     f::Function
 end
 
-function is_inside(x1::Float64, x2::Float64, sp::Specification)::Bool
-    return sp.f(Vec2(x1,x2)) && is_inside(x1, x2, sp.s)
+function is_inside(x::RealVector, sp::Specification)::Bool
+    return sp.f(x) && is_inside(x, sp.s)
 end
 
-function boundarybox(sp::Specification)::Rectangle
+function boundarybox(sp::Specification)::Box
     return boundarybox(sp.s)
 end
 
@@ -239,36 +189,43 @@ at least one point on `grid` in `s`.
 """
 struct BoundaryLayer <: Shape
     s::Shape
-    xs::Vector{Vec2}
+    dim::Int64
+    xs::Vector{RealVector}
     width::Float64
     BoundaryLayer(s::Shape, grid::Grid, width::Float64) = begin
         if width <= 0.
             @warn("Degenerate boundary layer definition (width <= 0)!")
         end
         xs = covering(grid, s)
-        return new(s, xs, width)
+        return new(s, dimension(grid), xs, width)
     end
 end
 
-function is_inside(x1::Float64, x2::Float64, bl::BoundaryLayer)::Bool
-    if is_inside(x1, x2, bl.s)
+function is_inside(x::RealVector, bl::BoundaryLayer)::Bool
+    if is_inside(x, bl.s)
         return false
     end
-    for x in bl.xs
-        if (x[1] - x1)^2 + (x[2] - x2)^2 < bl.width^2
+    for y in bl.xs
+        if norm(x - y) < bl.width
             return true
         end
     end
     return false
 end
 
-function boundarybox(bl::BoundaryLayer)::Rectangle
+function boundarybox(bl::BoundaryLayer)::Box
     r = boundarybox(bl.s)
     x1_min = r.x1_min - bl.width
     x2_min = r.x2_min - bl.width
+    x3_min = r.x3_min - bl.width
     x1_max = r.x1_max + bl.width
     x2_max = r.x2_max + bl.width
-    return Rectangle(x1_min, x2_min, x1_max, x2_max)
+    x3_max = r.x3_max + bl.width
+    if bl.dim == 2
+        return Rectangle(x1_min, x2_min, x1_max, x2_max)
+    else
+        return Box(x1_min, x2_min, x3_min, x1_max, x2_max, x3_max)
+    end
 end
 
 #define +,-,* on shapes as equivalent to BooleanUnion, BooleanDifference and BooleanIntersection respectively
@@ -278,73 +235,27 @@ Base.:*(s1::Shape, s2::Shape) = BooleanIntersection(s1, s2)
 
 
 """
-    generate_particles!(sys::ParticleSystem,
-                        grid::Grid,
-                        geometry::Shape,
-                        constructor::Function)
+    Ball(x1::Float64, x2::Float64, x3::Float64, r::Float64) <: Shape
 
-Create particles using `constructor(x::Vec2)::AbstractParticle` at every `grid` point
-inside a given shape.
-
+Define a ball by specifying the center `(x1, x2, x3)` and the radius `r`.
 """
-function generate_particles!(sys::ParticleSystem, grid::Grid, geometry::Shape, constructor::Function)
-    xs = covering(grid, geometry)
-    for x in xs
-        push!(sys.particles, constructor(x))
+struct Ball <: Shape
+    x1::Float64
+    x2::Float64
+    x3::Float64
+    r::Float64
+    Ball(x1::Float64, x2::Float64, x3::Float64, r::Float64) = begin
+        if r <= 0.0
+            @warn("Degenerate ball definition (r <= 0)!")
+        end
+        return new(x1,x2,x3,r)
     end
 end
 
-
-#tools to remove particles from system
-
-#remove the last particle from system
-@inline function pop!(sys::ParticleSystem)
-	p = sys.particles[end]
-	# remove p from cell list
-	key = find_key(sys, p.x[1], p.x[2])
-	if 1 <= key <= sys.key_max
-		for i in 1:length(sys.cell_list[key])
-			if ismissing(sys.cell_list[key][i])
-				continue
-			end
-			if p == sys.cell_list[key][i]
-				sys.cell_list[key][i] = missing
-			end
-		end
-	end
-	#resize particlel list
-	Base.pop!(sys.particles)
+function is_inside(x::RealVector, b::Ball)::Bool
+    return (x[1] - b.x1)^2 + (x[2] - b.x2)^2  + (x[3] - b.x3)^2 <= b.r^2
 end
 
-#sort array by boolean value (0 or 1) in linear time
-function sort_by_bool!(a::AbstractArray, f::Function)
-       i = 1
-       j = length(a)
-       while i < j
-           while i < j && !f(a[i])
-               i+=1
-           end
-           while i < j && f(a[j])
-               j-=1
-           end
-           temp = a[i]
-           a[i] = a[j]
-           a[j] = temp
-           i += 1
-           j -= 1
-       end
-end
-
-"""
-    remove_particles!(sys::ParticleSystem, criterion::Function)
-
-Remove all particles `p` in `sys` satisfying `criterion(p) == true`.
-"""
-@inline function remove_particles!(sys::ParticleSystem, criterion::Function)
-	#move particles satisfying criterion to the end of the list
-	sort_by_bool!(sys.particles, criterion)
-	#pop last particle until it no longer satisfies the criterion
-	while length(sys.particles) > 0 && criterion(sys.particles[end])
-		pop!(sys)
-	end
+function boundarybox(b::Ball)::Box
+    return Box(b.x1-b.r, b.x2-b.r, b.x3-b.r, b.x1+b.r, b.x2+b.r, b.x3+b.r) 
 end

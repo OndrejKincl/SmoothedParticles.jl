@@ -31,7 +31,7 @@ const h = 1.8*dr        #size of kernel support
 const rho0 = 1000.0     #fluid density
 const m = rho0*dr^2     #particle mass
 const c = 40.0          #numerical speed of sound
-const g = Vec2(0., -1.) #gravitational acceleration
+const g = -VECY         #gravitational acceleration
 const mu = 8.4e-4       #dynamic viscosity of water
 
 const water_depth = 0.14
@@ -53,15 +53,15 @@ Declare variables to be stored in a Particle
 =#
 
 mutable struct Particle <: AbstractParticle
-	x::Vec2 #position
-	v::Vec2 #velocity
-	a::Vec2 #acceleration
+	x::RealVector #position
+	v::RealVector #velocity
+	a::RealVector #acceleration
 	rho::Float64 #density
 	type::Float64 #particle type
-	Particle(x::Vec2, type::Float64) = new(
+	Particle(x::RealVector, type::Float64) = new(
 		x,
-		zero(Vec2),
-		zero(Vec2),
+		VEC0,
+		VEC0,
 		rho0,
 		type
 	)
@@ -112,7 +112,7 @@ end
 function update!(p::Particle)
 	p.v += dt*isfluid(p)*(p.a + g)
 	p.x += dt*isfluid(p)*p.v
-	p.a = zero(Vec2)
+	p.a = VEC0
 end
 
 

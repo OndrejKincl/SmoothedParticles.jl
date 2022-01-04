@@ -1,13 +1,15 @@
 using  StaticArrays
 
-const Vec2 = SArray{Tuple{2},Float64,1,2}
-const Mat2 = SArray{Tuple{2,2},Float64,2,4}
-
-const Vec3 = SArray{Tuple{3},Float64,1,3}
-const Mat3 = SArray{Tuple{3,3},Float64,2,9}
-
-const VecX = Union{Vec2, Vec3}
-const MatX = Union{Mat2, Mat3}
+const RealVector = SArray{Tuple{3},Float64,1,3}
+const RealMatrix = SArray{Tuple{3,3},Float64,2,9}
+const VECX = RealVector(1., 0., 0.)
+const VECY = RealVector(0., 1., 0.)
+const VECZ = RealVector(0., 0., 1.)
+const VEC0 = zero(RealVector)
+const MAT0 = zero(RealMatrix)
+const MAT1 = RealMatrix(1., 0., 0., 
+                        0., 1., 0.,
+						0., 0., 1.)
 
 """
 	AbstractParticle
@@ -16,7 +18,7 @@ Abstract supertype for smoothed particles. Any structure with `AbstractParticle`
 supertype is expected to:
 
 * be mutable
-* have field `x::Vec2` (particle position)
+* have field `x::RealVector` (particle position)
 """
 abstract type AbstractParticle end
 
@@ -27,6 +29,18 @@ Supertype for geometrical shapes.
 """
 abstract type Shape end
 
+#cell for storing particle indeces
+mutable struct Cell
+	entries::Vector{Int64}
+	lock::Threads.ReentrantLock
+	Cell() = new(Int64[], Threads.ReentrantLock())
+end
+
+Base.size(c::Cell) = (length(c.entries),)
+Base.IndexStyle(::Type{<:Cell}) = IndexLinear()
+Base.getindex(c::Cell, i::Int64) = getindex(c.entries, i)
+Base.setindex!(c::Cell, val::Any, i::Int64) = setindex!(c.entries, val, i)
+
 """
 	ParticleSystem(T::Type, domain::Shape, h::Float64)
 
@@ -35,51 +49,70 @@ The constructor specifies that:
 * the simulation will use particles of type `T <: AbstractParticle`,
 * Particles outside of the 'domain' can be disregarded (and will be automatically removed).
 * Particles are considered neighbours if their distance is less than `h`.
-Please, do not make 'domain' too large. This will negative impact on the performance.
+Please, do not make 'domain' unnecessarily large (has negative impact on performance).
 """
 struct ParticleSystem{T <: AbstractParticle}
 	h::Float64
-
 	domain::Shape
 
-	i_phase::Int64
-	j_phase::Int64
-	i_max::Int64
-	j_max::Int64
+	#values for computing location keys
+	key_phase::NTuple{3, Int64}
+	key_lim::NTuple{3, Int64}
 	key_max::Int64
+	key_diff::Vector{Int64}
 
-	particle_type::DataType
 	particles::Vector{T}
-	cell_list::Vector{Vector{Union{Missing, T}}}
-	cell_lock::Vector{Threads.ReentrantLock}	#locks used in parallel cell_list generation
+	cell_list::Vector{Cell}
+	removal_cell::Cell
 
 	ParticleSystem(T::DataType, domain::Shape, h::Float64) =
 	begin
 			@assert(h  > 0.0, "invalid ParticleSystem declaration! (h must be a positive float)")
 			@assert(T <: AbstractParticle, "invalid ParticleSystem declaration! ("*string(T)*" is not an AbstractParticle subtype)")
-			@assert(hasfield(T, :x)  , "invalid ParticleSystem declaration! (particles must have a field `x::Vec2`)")
-			rect = boundarybox(domain)
-			i_phase = Int64(floor(rect.x1_min/h))
-			j_phase = Int64(floor(rect.x2_min/h))
-			i_max 	= Int64(floor(rect.x1_max/h)) - i_phase + 1
-			j_max 	= Int64(floor(rect.x2_max/h)) - j_phase + 1
-			key_max = i_max*j_max
+			@assert(hasfield(T, :x) && (attribute_type(T, :x) == RealVector), "invalid ParticleSystem declaration! (particles must have a field `x::RealVector`)")
 
-			particles = Vector{T}()
-			cell_list = Vector{Vector{Union{Missing, T}}}(undef, key_max)
-			cell_lock = Vector{Threads.ReentrantLock}(undef, key_max)
-			for key in 1:key_max
-				cell_list[key] = Vector{Union{Missing, T}}()
-				cell_lock[key] = Threads.ReentrantLock()
+			box = boundarybox(domain)
+			x_min = (box.x1_min, box.x2_min, box.x3_min)
+			x_max = (box.x1_max, box.x2_max, box.x3_max)
+			key_phase = Int64.(floor.(x_min./h))
+			key_lim = Int64.(floor.(x_max./h)) .- key_phase .+ 1
+			key_max = prod(key_lim)
+			key_diff = Int64[]
+			if key_lim[3] == 1
+				@info("2D sim")
+				#simulation in 2d
+				for di in -1:1, dj in -1:1
+					push!(key_diff, di + key_lim[1]*dj)
+				end
+			else
+				@info("3D sim")
+				#simulation in 3d
+				for di in -1:1, dj in -1:1, dk in -1:1
+					push!(key_diff, di + key_lim[1]*(dj + key_lim[2]*dk))
+				end
 			end
+			particles = Vector{T}()
+			cell_list = [Cell() for _ in 1:key_max]
+			removal_cell = Cell()
 			return new{T}(
-				h, 
-				rect, 
-				i_phase, j_phase, 
-				i_max, j_max, key_max, 
-				T, particles,
-				cell_list, cell_lock
+				h, box,
+				key_phase, key_lim, key_max, key_diff,
+				particles, cell_list, removal_cell
 			)
+	end
+end
+
+get_particle_type(::ParticleSystem{T}) where T = T
+
+#Find the cell index for given coordinate x::RealVector
+function find_key(sys::ParticleSystem, x::RealVector)::Int64
+	try
+		i = 1 + Int64(floor(x[1]/sys.h)) - sys.key_phase[1]
+		j = 1 + Int64(floor(x[2]/sys.h)) - sys.key_phase[2]
+		k = 1 + Int64(floor(x[3]/sys.h)) - sys.key_phase[3]
+		return i + sys.key_lim[1]*(j-1) + sys.key_lim[1]*sys.key_lim[2]*(k-1)
+	catch #Int64(x) fails when x is nan or infinity
+		return -1
 	end
 end
 
@@ -102,3 +135,13 @@ Base.size(f::ParticleField) = (length(f.sys.particles),)
 Base.IndexStyle(::Type{<:ParticleField}) = IndexLinear()
 Base.getindex(f::ParticleField, i::Int64) = getproperty(f.sys.particles[i], f.varS)
 Base.setindex!(f::ParticleField, val::Any, k::Int64) = setproperty!(f.sys.particles[k], f.varS, val)
+
+
+function attribute_type(type::DataType, var::Symbol)
+    ind = findfirst(s -> s == var, fieldnames(type))
+    if typeof(ind) == Nothing
+        throw("Variable "*string(var)* 
+            " does not exist!")
+    end
+    return fieldtypes(type)[ind]
+end

@@ -64,15 +64,15 @@ Declare variables to be stored in a Particle
 =#
 
 mutable struct Particle <: AbstractParticle
-    x::Vec2 #position
-    v::Vec2 #velocity
-    a::Vec2 #acceleration
+    x::RealVector #position
+    v::RealVector #velocity
+    a::RealVector #acceleration
     rho::Float64 #density
     Drho::Float64 #rate of density
     P::Float64 #pressure
     type::Float64 #particle type
     Particle(x,type) = begin
-        return new(x, zero(Vec2), zero(Vec2), rho0, 0., 0., type)
+        return new(x, VEC0, VEC0, rho0, 0., 0., type)
     end
 end
 
@@ -104,7 +104,7 @@ function set_inflow_speed!(p::Particle, t::Float64)
     if p.type == INFLOW
         s = min(1.0, t/t_acc)
         v1 = 4.0*s*U_max*p.x[2]*(chan_w - p.x[2])/chan_w^2
-        p.v = Vec2(v1, 0.0)
+        p.v = v1*VECX
     end
 end
 
@@ -130,7 +130,7 @@ end
 end
 
 function move!(p::Particle)
-	p.a = zero(Vec2)
+	p.a = VEC0
 	if p.type == FLUID || p.type == INFLOW
 		p.x += dt*p.v
 	end
@@ -147,15 +147,15 @@ function add_new_particles!(sys::ParticleSystem)
     for p in sys.particles
         if p.type == INFLOW && p.x[1] >= 0
             p.type = FLUID
-            x = p.x - Vec2(inflow_l,0.)
+            x = p.x - inflow_l*VECX
             push!(new_particles, Particle(x, INFLOW))
         end
     end
     append!(sys.particles, new_particles)
 end
 
-function calculate_force(sys::ParticleSystem)::Vec2
-    F = zero(Vec2)
+function calculate_force(sys::ParticleSystem)::RealVector
+    F = VEC0
     for p in sys.particles
         if p.type == OBSTACLE
             F += m*p.a
@@ -196,8 +196,8 @@ function  main()
 	end
 	save_pvd_file(out)
     println()
-    C_SPH = Vec2(sum(C_D[end-9:end]/10), sum(C_L[end-9:end]/10))
-    C_exact = Vec2(5.57953523384, 0.010618948146)
+    C_SPH = RealVector(sum(C_D[end-9:end]/10), sum(C_L[end-9:end]/10), 0.)
+    C_exact = RealVector(5.57953523384, 0.010618948146, 0.)
     relative_error = norm(C_SPH - C_exact)/norm(C_exact)
     @show C_SPH
     @show C_exact

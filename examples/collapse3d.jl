@@ -1,16 +1,10 @@
 #=
 
-# 2: Water collapse (explicit)
+# 2: Water collapse 3d
 
-```@raw html
-	<img src='../assets/collapse_exp.png' alt='missing' width="50%" height="50%" /><br>
-```
-
-Simulation of a water column collapsing under its own weight onto dry bottom.
-This is, where SPH is more useful than typical mesh-based methods
 =#
 
-module collapse_dry
+module collapse3d
 
 using Printf
 include("../src/SPHLib.jl")
@@ -24,9 +18,9 @@ Declare constant parameters
 const dr = 5.0e-3          #average particle distance (decrease to make finer simulation)
 const h = 2.0*dr           #size of kernel support
 const rho0 = 1000.   	   #fluid density
-const m = rho0*dr^2        #particle mass
+const m = rho0*dr^3        #particle mass
 const c = 50.0             #numerical speed of sound
-const g = -9.8*VECY        #gravitational acceleration
+const g = -9.8*VECZ        #gravitational acceleration
 const mu = 8.4e-4          #dynamic viscosity of water
 const nu = 1.0e-4          #pressure stabilization
 
@@ -35,12 +29,13 @@ const water_column_width = 0.142
 const water_column_height = 0.293
 const box_height = 0.35
 const box_width = 0.584
+const box_depth = 0.15
 const wall_width = 2.5*dr
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.2
-const dt_frame = t_end/20
+const t_end = 0.5
+const dt_frame = t_end/200
 
 
 ##particle types
@@ -72,12 +67,12 @@ Define geometry and make particles
 =#
 
 function make_system()
-	grid = Grid(dr, :square)
-	box = Rectangle(0., 0., box_width, box_height)
-	fluid = Rectangle(0., 0., water_column_width, water_column_height)
+	grid = Grid(dr, :cubic)
+	box = Box(0., 0., 0., box_width, box_height, box_depth)
+	fluid = Box(0., 0., 0., water_column_width, water_column_height, box_depth)
 	walls = BoundaryLayer(box, grid, wall_width)
 	walls = Specification(walls, x -> (x[2] < box_height))
-	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height)
+	domain = SPHLib.boundarybox(walls)
 	sys = ParticleSystem(Particle, domain, h)
 	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
 	generate_particles!(sys, grid, walls, x -> Particle(x, WALL))
@@ -89,7 +84,7 @@ Define particle interactions
 =#
 
 @inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
+	ker = m*rDwendland3(h,r)
 	p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
 end
 
@@ -101,7 +96,7 @@ end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
 	if p.type == FLUID
-		ker = m*rDwendland2(h,r)
+		ker = m*rDwendland3(h,r)
 		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
 		p.a += +2*ker*mu/rho0^2*(p.v - q.v)
 	end
@@ -132,7 +127,8 @@ Put everything into a time loop
 =#
 function main()
 	sys = make_system()
-	out = new_pvd_file("results/collapse_dry")
+	out = new_pvd_file("results/collapse3d")
+    println("# of parts = ", length(sys.particles))
 	#a modified Verlet scheme
 	@time for k = 0 : Int64(round(t_end/dt))
 	#move particles
