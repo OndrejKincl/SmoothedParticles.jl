@@ -4,6 +4,13 @@ function is_inside(p::AbstractParticle, s::Shape)::Bool
     return is_inside(p.x, s)
 end
 
+
+"""
+    Box(x1_min::Float64, x2_min::Float64, x3_min::Float64,
+        x1_max::Float64, x2_max::Float64, x3_max::Float64)::Shape
+    
+Defines a box specified by two corners.
+"""
 struct Box <: Shape
     x1_min::Float64
     x2_min::Float64
@@ -190,14 +197,14 @@ at least one point on `grid` in `s`.
 struct BoundaryLayer <: Shape
     s::Shape
     dim::Int64
-    xs::Vector{RealVector}
+    dxs::Vector{RealVector}
     width::Float64
     BoundaryLayer(s::Shape, grid::Grid, width::Float64) = begin
         if width <= 0.
             @warn("Degenerate boundary layer definition (width <= 0)!")
         end
-        xs = covering(grid, s)
-        return new(s, dimension(grid), xs, width)
+        dxs = covering(grid, Ball(0.,0.,0.,width))
+        return new(s, dimension(grid), dxs, width)
     end
 end
 
@@ -205,8 +212,8 @@ function is_inside(x::RealVector, bl::BoundaryLayer)::Bool
     if is_inside(x, bl.s)
         return false
     end
-    for y in bl.xs
-        if norm(x - y) < bl.width
+    for dx in bl.dxs
+        if is_inside(x + dx, bl.s)
             return true
         end
     end
@@ -258,4 +265,36 @@ end
 
 function boundarybox(b::Ball)::Box
     return Box(b.x1-b.r, b.x2-b.r, b.x3-b.r, b.x1+b.r, b.x2+b.r, b.x3+b.r) 
+end
+
+"""
+    Transform(s::Shape; A::RealMatrix = MAT1, b::RealVector = VEC0)
+
+Define shape as a linear transform ``x \\to Ax + b`` applied to shape `s`.
+"""
+struct Transform <: Shape
+    s::Shape
+    A::RealMatrix
+    A_inv::RealMatrix
+    b::RealVector
+    Transform(s::Shape; A::RealMatrix = MAT1, b::RealVector = VEC0) = new(s, A, inv(A), b)
+end
+
+function is_inside(x::RealVector, tr::Transform)::Bool
+    return is_inside(tr.A_inv*(x - tr.b), tr.s)
+end
+
+function boundarybox(tr::Transform)::Box
+    box = boundarybox(tr.s)
+    x1 = (box.x1_min, box.x1_max)
+    x2 = (box.x2_min, box.x2_max)
+    x3 = (box.x3_min, box.x3_max)
+    x_min = [+Inf, +Inf, +Inf]
+    x_max = [-Inf, -Inf, -Inf]
+    for i1 in 0:1, i2 in 0:1, i3 in 0:1
+        x = tr.A*RealVector(x1[i1], x2[i2], x3[i3]) + tr.b
+        x_min .= min.(x_min, x)
+        x_max .= max.(x_max, x)
+    end
+    return Box(x_min[1], x_min[2], x_min[3], x_max[1], x_max[2], x_max[3])
 end

@@ -25,7 +25,6 @@ function Grid(dr::Float64, symm::Symbol)::Grid
     return @match symm begin
 		:square 	=> Squaregrid(dr)
 		:hexagonal  => Hexagrid(dr)
-        :noisy      => NoisyGrid(dr)
         :vogel      => VogelGrid(dr)
         :cubic      => CubicGrid(dr)
 		_ 			=> @error("Unsupported grid type: "*string(symm))

@@ -38,16 +38,16 @@ Declare variables to be stored in a Particle
 
 ````julia
 mutable struct Particle <: AbstractParticle
-	x::Vec2	#position
-	v::Vec2 #velocity
-	a::Vec2 #acceleratation
+	x::RealVector	#position
+	v::RealVector #velocity
+	a::RealVector #acceleratation
 	rho::Float64 #density
 	Drho::Float64 #rate of density
 	P::Float64 #pressure
 	type::Float64 #particle type
-	Particle(x::Vec2, type::Float64) = begin
-		v1 = (type == LID ? vlid : 0.)
-		return new(x, Vec2(v1, 0.0), zero(Vec2), rho0, 0., 0., type)
+	Particle(x::RealVector, type::Float64) = begin
+		speed = (type == LID ? vlid : 0.)
+		return new(x, speed*VECX, VEC0, rho0, 0., 0., type)
 	end
 end
 ````
@@ -96,7 +96,7 @@ end
 end
 
 function move!(p::Particle)
-	p.a = zero(Vec2)
+	p.a = VEC0
 	if p.type == FLUID
 		p.x += dt*p.v
 	end
