@@ -194,3 +194,11 @@ Integrates to unity.
 	return -66.84507609859604*((1.0 - x)^3)/h^5
 end
 
+@fastmath function DDwendland3(h::Float64, r::Float64)::Float64
+	x = r/h
+	if (x > 1.0)
+		return 0.0
+	end
+	# 630/pi ≐ 200.53522829578813
+	return 200.53522829578813*((1.0 - x)^2)/h^5
+end

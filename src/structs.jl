@@ -132,7 +132,6 @@ struct ParticleField <: AbstractArray{Float64, 1}
 end
 
 Base.size(f::ParticleField) = (length(f.sys.particles),)
-Base.IndexStyle(::Type{<:ParticleField}) = IndexLinear()
 Base.getindex(f::ParticleField, i::Int64) = getproperty(f.sys.particles[i], f.varS)
 Base.setindex!(f::ParticleField, val::Any, k::Int64) = setproperty!(f.sys.particles[k], f.varS, val)
 
