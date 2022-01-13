@@ -194,3 +194,36 @@ Integrates to unity.
 	return -66.84507609859604*((1.0 - x)^3)/h^5
 end
 
+
+@fastmath function DDwendland3(h::Float64, r::Float64)::Float64
+	x = r/h
+	if (x > 1.0)
+		return 0.0
+	end
+	# 210/pi ≐ 66.84507609859604
+	return -66.84507609859604*((1.0 - 4.0*x)*(1.0 - x)^2)/h^5
+end
+
+@fastmath function spiky3(h::Float64, r::Float64)::Float64
+	x = r/h
+	#15/2pi = 2.3873241463784303
+	return 2.3873241463784303*(1.0 - x)^2/h^3
+end
+
+@fastmath function Dspiky3(h::Float64, r::Float64)::Float64
+	x = r/h
+	#15/pi = 4.7746482927568605
+	return -(x < 1.0)*2.3873241463784303*(1.0 - x)/h^4
+end
+
+@fastmath function rDspiky3(h::Float64, r::Float64)::Float64
+	x = r/h
+	#15/pi = 4.7746482927568605
+	return -(x < 1.0)*2.3873241463784303*(1.0 - x)/((x + 1e-6)*h^5)
+end
+
+@fastmath function DDspiky3(h::Float64, r::Float64)::Float64
+	x = r/h
+	#15/pi = 4.7746482927568605
+	return (x < 1.0)*2.3873241463784303/h^5
+end

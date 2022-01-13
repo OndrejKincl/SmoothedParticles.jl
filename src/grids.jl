@@ -96,10 +96,10 @@ end
 
 function covering(vg::VogelGrid, s::Shape)::Vector{RealVector}
     bb = boundarybox(s)
-    dl = Vec3(bb.x1_min, bb.x2_min, 0.)
-    dr = Vec3(bb.x1_max, bb.x2_min, 0.)
-    ur = Vec3(bb.x1_max, bb.x2_max, 0.)
-    ul = Vec3(bb.x1_min, bb.x2_max, 0.)
+    dl = RealVector(bb.x1_min, bb.x2_min, 0.)
+    dr = RealVector(bb.x1_max, bb.x2_min, 0.)
+    ur = RealVector(bb.x1_max, bb.x2_max, 0.)
+    ul = RealVector(bb.x1_min, bb.x2_max, 0.)
     R = 0.0
     for corner in [dl, dr, ur, ul]
         R = max(R, norm(corner - vg.center))
