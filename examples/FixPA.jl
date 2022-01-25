@@ -1,5 +1,4 @@
 module FixPA
-module FixPA
 
 include("../src/SPHLib.jl")
 using .SPHLib
