@@ -15,7 +15,7 @@ export AbstractParticle,
 
 include("kernels.jl")
 export wendland2, Dwendland2, rDwendland2, 
-       wendland3, Dwendland3, rDwendland3, DDwendland3
+       wendland3, Dwendland3, rDwendland3, DDwendland3,
        spline24, Dspline24, rDspline24,
        spline23, Dspline23, rDspline23
 
