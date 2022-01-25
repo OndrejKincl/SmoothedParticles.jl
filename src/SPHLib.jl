@@ -9,8 +9,8 @@ export AbstractParticle,
        ParticleSystem, 
        ParticleField, 
        DataField,
-       RealVector, Vec2, Vec3
-       RealMatrix, Mat2, Mat3
+       RealVector, Vec2, Vec3,
+       RealMatrix, Mat2, Mat3,
        VECX, VECY, VECZ, VEC0, MAT0, MAT1
 
 include("kernels.jl")
@@ -55,5 +55,7 @@ include("IO.jl")
 export save_frame!, 
        new_pvd_file,
        save_pvd_file
+
+include("ICR.jl")
 
 end
