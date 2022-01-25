@@ -36,10 +36,10 @@ const m = dr^2*rho0       #particle mass
 const Lmin = 3*kernel(h,0.)/rho0*(pi - (dr/h)^2)  #free particles are those that satisfy L < Lmin
 
 ##geometry parameters
-const water_column_width = 0.142
-const water_column_height = 0.293
-const box_height = 0.35
-const box_width = 0.584
+const water_column_width = 1.0
+const water_column_height = 2.0
+const box_height = 3.0
+const box_width = 4.0
 const nlayers = 3.5 #number of wall layers
 const wall_width = nlayers*dr
 
