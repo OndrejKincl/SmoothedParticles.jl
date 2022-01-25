@@ -9,8 +9,8 @@ export AbstractParticle,
        ParticleSystem, 
        ParticleField, 
        DataField,
-       RealVector,
-       RealMatrix,
+       RealVector, Vec2, Vec3
+       RealMatrix, Mat2, Mat3
        VECX, VECY, VECZ, VEC0, MAT0, MAT1
 
 include("kernels.jl")

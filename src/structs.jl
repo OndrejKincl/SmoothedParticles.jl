@@ -11,6 +11,19 @@ const MAT1 = RealMatrix(1., 0., 0.,
                         0., 1., 0.,
 						0., 0., 1.)
 
+function Vec2(x1::Float64, x2::Float64)::RealVector
+	return RealVector(x1, x2, 0.)
+end
+
+function Mat2(x11::Float64, x12::Float64, x21::Float64, x22::Float64)
+	return RealMatrix(x11,x12, 0.,
+	                  x21,x22, 0.,
+					   0., 0., 1.)
+end
+
+const Vec3 = RealVector
+const Mat3 = RealMatrix
+
 """
 	AbstractParticle
 
