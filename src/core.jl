@@ -1,39 +1,49 @@
 using SparseArrays
 
-#fast scalar product
-function dot(x::Vec2, y::Vec2)::Float64
-	return x[1]*y[1] + x[2]*y[2]
+#fast scalar product and norm
+function dot(x::RealVector, y::RealVector)::Float64
+	return x[1]*y[1] + x[2]*y[2] + x[3]*y[3]
 end
 
-function norm(x::Vec2)::Float64
-	return sqrt(x[1]*x[1] + x[2]*x[2])
+function norm(x::RealVector)::Float64
+	return sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3])
 end
 
-#Find the cell index for given coordinates x1,x2.
-function find_key(sys::ParticleSystem, x1::Float64, x2::Float64, Δi::Int64 = 0, Δj::Int64 = 0)::Int64
-	try
-		i = 1 + Int64(floor(x1/sys.h)) + Δi - sys.i_phase
-		j = 1 + Int64(floor(x2/sys.h)) + Δj - sys.j_phase
-		return i + sys.i_max*(j-1)
-	catch
-		return -1
-	end
+function dist(p::AbstractParticle, q::AbstractParticle)::Float64
+	return norm(p.x - q.x)
 end
 
 #Find vacations, where particles are missing.
 function find_vacation!(a::AbstractArray)::Int64
 	#find first non-missing entry
 	for i in eachindex(a)
-		if ismissing(a[i])
+		if a[i] == 0
 			return i
 		end
 	end
 	#if a is full, expand
 	i = length(a) + 1
 	resize!(a, i)
-	#@warn("extending particles per cell limit to "*string(i))
 	return i
 end
+
+function add_index!(cell::Cell, i::Int64)
+	lock(cell.lock)
+	try
+		ind = find_vacation!(cell.entries)
+		cell[ind] = i
+		#reorder
+		while ind > 1 && cell[ind-1] < cell[ind]
+			temp = cell[ind]
+			cell[ind] = cell[ind-1]
+			cell[ind-1] = temp
+			ind -= 1
+		end
+	finally
+		unlock(cell.lock)
+	end
+end
+
 
 """
 	create_cell_list!(sys::ParticleSystem)
@@ -43,42 +53,58 @@ always called after updating positions. Without updated cell list, applying
 binary particle operators or assembling matrices will lead to incorrect results.
 """
 @inline function create_cell_list!(sys::ParticleSystem)
-	#delete all particles outside of the domain
-	remove_particles!(sys, p -> !is_inside(p, sys.domain))
-
-	#declare all entries of every cell as missing
+	
+	#declare all entries null
 	Threads.@threads for cell in sys.cell_list
-		for k in 1:length(cell)
-			cell[k] = missing
+		for k in eachindex(cell.entries)
+			cell.entries[k] = 0
 		end
 	end
-	#fill the cell list with new entries
-	Threads.@threads for p in sys.particles
-		key = find_key(sys, p.x[1], p.x[2])
-		if 1 <= key <= sys.key_max
-			cell = sys.cell_list[key]
-			lock(sys.cell_lock[key])
-			try
-				ind = find_vacation!(cell)
-				cell[ind] = p
-			finally
-				unlock(sys.cell_lock[key])
-			end
+	for k in eachindex(sys.removal_cell.entries)
+		sys.removal_cell.entries[k] = 0
+	end
+
+	#identify particles outside domain
+	Threads.@threads for i in 1:length(sys.particles)
+		p = sys.particles[i]
+		if !is_inside(p, sys.domain)
+			add_index!(sys.removal_cell, i)
 		end
+	end
+
+	#remove particles in removal_cell
+	begin
+		i = 1
+		while i <= length(sys.removal_cell.entries) && sys.removal_cell[i] != 0
+			sys.particles[sys.removal_cell[i]] = sys.particles[end+1-i]
+			i += 1
+		end
+		if i > 1
+			resize!(sys.particles, length(sys.particles)+1-i)
+		end
+	end
+	
+	#fill the cell list with new entries
+	Threads.@threads for i in 1:length(sys.particles)
+		p = sys.particles[i]
+		key = find_key(sys, p.x)
+		cell = sys.cell_list[key]
+		add_index!(cell, i)
 	end
 end
 
 
 #Apply action between a cell and all neighbouring cells.
 @inline function _apply_binary!(sys::ParticleSystem, action!::Function, p::AbstractParticle)
-	key = find_key(sys, p.x[1], p.x[2])
-	for Δkey in 0:8
-		neighbour_key = key + (Δkey%3-1) + sys.i_max*(div(Δkey,3)%3-1)
+	key = find_key(sys, p.x)
+	for Δkey in sys.key_diff
+		neighbour_key = key + Δkey
 		if 1 <= neighbour_key <= sys.key_max
-			for q in sys.cell_list[neighbour_key]
-				if ismissing(q)
+			for j in sys.cell_list[neighbour_key].entries
+				if j == 0
 					break
 				end
+				q = sys.particles[j]
 				r = dist(p,q)
 				if (r > sys.h) || (p == q)
 					continue
@@ -127,7 +153,8 @@ signature of `action!`. If `self == true`, then particle self-interaction
 for binary operator is allowed.
 """
 function apply!(sys::ParticleSystem, action!::Function; self::Bool = false)
-	if hasmethod(action!, (sys.particle_type, sys.particle_type, Float64))
+	Type = get_particle_type(sys)
+	if hasmethod(action!, (Type, Type, Float64))
 		apply_binary!(sys, action!)
 		if self
 			apply_unary!(sys, (p -> action!(p, p, 0.0)))
@@ -137,14 +164,6 @@ function apply!(sys::ParticleSystem, action!::Function; self::Bool = false)
 	end
 end
 
-"""
-	dist(p::AbstractParticle, q::AbstractParticle)::Float64
-
-Calculate the distance between two particles `p` and `q`.
-"""
-function dist(p::AbstractParticle, q::AbstractParticle)::Float64
-	return sqrt((p.x[1] - q.x[1])^2 + (p.x[2] - q.x[2])^2)
-end
 
 """
 	assemble_vector(sys::ParticleSystem, func::Function)::Vector{Float64}
@@ -185,13 +204,15 @@ This assumes that ``A_{ij} = 0`` for ``r_{ij} > h``.
 	J = Int64[] 	#coord j of every nonzero entry
 	V = Float64[]   #value of entry i,j
 	for p in sys.particles
-		for k in 0:8
-			key = find_key(sys, p.x[1], p.x[2], k%3-1, div(k,3)-1)
-			if 1 <= key <= sys.key_max
-				for q in sys.cell_list[key]
-					if ismissing(q)
+		key = find_key(sys, p.x)
+		for Δkey in sys.key_diff
+			neighbour_key = key + Δkey
+			if 1 <= neighbour_key <= sys.key_max
+				for l in sys.cell_list[neighbour_key].entries
+					if l == 0
 						break
 					end
+					q = sys.particles[l]
 					#filter remote particles
 					r = dist(p,q)
 					if (r > sys.h)
@@ -209,7 +230,7 @@ end
 
 
 """
-	sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
+	sum(sys::ParticleSystem, func::Function, x::RealVector)::Float64
 
 For given function `func(p::T, r::Float64)::Float64 where T <: AbstractParticle` it returns the sum
 
@@ -220,16 +241,18 @@ For given function `func(p::T, r::Float64)::Float64 where T <: AbstractParticle`
 This can be useful if one needs to compute SPH interpolation at a point which is
 not occupied by a particle.
 """
-@inline function sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
+@inline function sum(sys::ParticleSystem, func::Function, x::RealVector)::Float64
 	out = 0.0
-	for k in 0:8
-		key = find_key(sys, x[1], x[2], k%3-1, div(k,3)-1)
-		if 1 <= key <= sys.key_max
-			for q in sys.cell_list[key]
-				if ismissing(q)
+	key = find_key(sys, x)
+	for Δkey in sys.key_diff
+		neighbour_key = key + Δkey
+		if 1 <= neighbour_key <= sys.key_max
+			for l in sys.cell_list[neighbour_key].entries
+				if l == 0
 					break
 				end
-				r = sqrt((x[1] - q.x[1])^2 + (x[2] - q.x[2])^2)
+				q = sys.particles[l]
+				r = norm(x - q.x)
 				if (r > sys.h)
 					continue
 				end
@@ -241,7 +264,7 @@ not occupied by a particle.
 end
 
 """
-	sum(sys::ParticleSystem, func::Function, x::Vec2)::Float64
+	sum(sys::ParticleSystem, func::Function, x::RealVector)::Float64
 
 For given function `func(p::T, q::T, r::Float64)::Float64 where T <: AbstractParticle` and particle `p` it returns the sum
 
@@ -251,13 +274,15 @@ For given function `func(p::T, q::T, r::Float64)::Float64 where T <: AbstractPar
 """
 @inline function sum(sys::ParticleSystem, func::Function, p::AbstractParticle)::Float64
 	out = 0.0
-	for k in 0:8
-		key = find_key(sys, x[1], x[2], k%3-1, div(k,3)-1)
-		if 1 <= key <= sys.key_max
-			for q in sys.cell_list[key]
-				if ismissing(q)
+	key = find_key(sys, p.x)
+	for Δkey in sys.key_diff
+		neighbour_key = key + Δkey
+		if 1 <= neighbour_key <= sys.key_max
+			for l in sys.cell_list[neighbour_key].entries
+				if l == 0
 					break
 				end
+				q = sys.particles[l]
 				r = norm(p.x - q.x)
 				if (r > sys.h)
 					continue

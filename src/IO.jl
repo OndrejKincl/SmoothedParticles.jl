@@ -1,5 +1,5 @@
 using WriteVTK
-using VTKDataIO
+#using VTKDataIO
 
 """
     DataStorage
@@ -37,7 +37,7 @@ end
 function capture_frame(sys::ParticleSystem, data::DataStorage)
     N = length(sys.particles)
     points = zeros(Float64, 3, N)
-    for k in 1:N, i in 1:2
+    for k in 1:N, i in 1:3
         points[i,k] = sys.particles[k].x[i]
     end
     cells = [MeshCell(PolyData.Verts(), [i]) for i in 1:N]
@@ -54,60 +54,63 @@ function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
     frame = capture_frame(sys, data)
     for var in vars
         field = ParticleField(sys, var)
-        type = attribute_type(sys.particle_type, var)
+        Type = attribute_type(get_particle_type(sys), var)
         N = length(sys.particles)
-        if type <: Number
+        if Type <: Number
             frame[string(var)] = field
-        elseif type == Vec2
+        elseif Type <: RealVector
             vals = zeros(Float64, 3, N)
-            for k in 1:N, i in 1:2
+            for k in 1:N, i in 1:3
                 vals[i,k] = field[k][i]
             end
             frame[string(var)] = vals
-        elseif type == Mat2
+        elseif Type <: RealMatrix
             vals = zeros(Float64, 3, 3, N)
-            for k in 1:N, i in 1:2, j in 1:2
+            for k in 1:N, i in 1:3, j in 1:3
                 vals[i,j,k] = field[k][i,j]
             end
+            frame[string(var)] = vals
         else   
-            @error("Cannot export type "*string(type)*" to VTK.")
+            @error("Cannot export type "*string(Type)*" to VTK.")
         end
     end
     data.file[data.frame] = frame
     data.frame += 1
 end
 
-function attribute_type(type::DataType, var::Symbol)
-    ind = findfirst(s -> s == var, fieldnames(type))
-    if typeof(ind) == Nothing
-        @error("Variable "*string(var)* 
-            " cannot be exported to VTK because it does not exist")
-    end
-    return fieldtypes(type)[ind]
-end
-
+#=
 """
     import_particles!(sys::ParticleSystem, path::String, particle_constructor::Function)
 
 Imports particles from a vtk file in 'path' using 'constructor'.
 """
-function read_vtk!(sys::ParticleSystem, path::String, particle_constructor::Function)
+function import_particles!(sys::ParticleSystem, path::String, particle_constructor::Function)
     input = read_vtk(path)
     (_, N) = size(input.point_coords)
     resize!(sys.particles, N)
     for i in 1:N
-        x1 = input.point_coords[1,i]
-        x2 = input.point_coords[2,i]
-        sys.particles[i] = particle_constructor(Vec2(x1, x2))
+        x = [input.point_coords[1,i] for i in 1:3] 
+        sys.particles[i] = particle_constructor(RealVector(x))
         for field in fieldnames(sys.particle_type)
             key = string(field)
-            type = attribute_type(sys.particle_type, field)
-            if type <: Number && haskey(input.point_data, key)
-                setproperty!(sys.particles[i], field, input.point_data[key][i])
+            #skip particle data not present in file
+            if !haskey(input.point_data, key)
+                continue
             end
-            if type == Vec2 && haskey(input.point_data, key)
-                setproperty!(sys.particles[i], field, Vec2(input.point_data[key][1,i], input.point_data[key][2,i]))
+            Type = attribute_type(get_particle_type(sys), field)
+            if Type <: Number
+                val = input.point_data[key][i]
+                setproperty!(sys.particles[i], field, val)
+            elseif Type <: RealVector
+                val = Type([input.point_data[key][j,i] for j in 1:3])
+                setproperty!(sys.particles[i], field, val)
+            elseif Type <: RealMatrix
+                val = Type([input.point_data[key][j,k] for j in 1:3, k in 1:3])
+                setproperty!(sys.particles[i], field, val)
+            else
+                throw("Cannot import data field with type:" *string(Type))
             end
         end
     end
 end
+=#
