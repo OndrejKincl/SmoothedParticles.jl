@@ -51,7 +51,7 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 2.0
+const t_end = 2.00
 const dt_frame = t_end/100
 
 ##particle types
@@ -145,6 +145,10 @@ function LJ_potential(p::Particle, q::Particle, r::Float64)::Float64
 	end
 end
 
+function energy_kinetic(sys::ParticleSystem)::Float64
+	return sum(p -> 0.5*m*dot(p.v, p.v), sys.particles)
+end
+
 function energy(sys::ParticleSystem, p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	internal =  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
@@ -197,8 +201,9 @@ function main()
 	
 
 	step_final = Int64(round(t_end/dt))
-	times = Float64[]
-	Ss = Float64[]
+	times = Float64[] #time instants
+	Ss = Float64[] # Entropy values
+	Ekin = Float64[] # Kinetic energy values
 	for k = 0 : step_final
         verlet_step!(sys)
         save_results!(out, sys, k)
@@ -207,6 +212,7 @@ function main()
 			S = entropy_2D_MB(distr)
 			push!(times, k*dt)
 			push!(Ss, S)
+			push!(Ekin, energy_kinetic(sys))
 			@show(S)
 		end
 	end
@@ -215,9 +221,9 @@ function main()
 	T = plot_velocity_distr(sys, "energy_distribution_middle.pdf")
 
 	# Plotting the entropy in time
-	Sred_eq_E = (1+log(sum(p -> energy(sys,p), sys.particles)/(m*length(sys.particles))))*ones(Float64,length(Ss))
+	Sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
 	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
-	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"])
+	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
 	savefig(p, "entropy_middle.pdf")
 
     #revert velocities
@@ -234,7 +240,6 @@ function main()
     	if k % round(step_final/100) == 0 # store a number of entropy values
 			distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
 			S = entropy_2D_MB(distr)
-			push!(times, k*dt)
 			push!(Ss_rev, S)
 			@show(S)
 		end
@@ -245,9 +250,7 @@ function main()
 	plot_velocity_distr(sys, "energy_distribution_final.pdf")
 
 	# Plotting the entropy in time
-	Sred_eq_E = (1+log(sum(p -> energy(sys,p), sys.particles)/(m*length(sys.particles))))*ones(Float64,length(Ss))
-	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
-	p = plot(times, [Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"])
+	p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
 	savefig(p, "entropy_final.pdf")
 end ## function main
 
