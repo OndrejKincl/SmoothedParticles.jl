@@ -20,6 +20,8 @@ using Plots
 using Ipopt
 using JuMP
 include("FixPA.jl")
+#using ReadVTK 
+#using VTKDataIO
 
 #=
 Declare constant parameters
@@ -49,7 +51,7 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.5
+const t_end = 2.0
 const dt_frame = t_end/100
 
 ##particle types
@@ -179,7 +181,6 @@ function save_results!(out::SPHLib.DataStorage, sys::ParticleSystem, k::Int64)
     end
 end
 
-
 function main()
 	sys = make_system()
 	out = new_pvd_file("results/collapse_fixpa")
@@ -189,32 +190,101 @@ function main()
     apply!(sys, find_rho!, self = true)
     apply!(sys, find_pressure!)
     apply!(sys, internal_force!)
-	for k = 0 : Int64(round(t_end/dt))
+
+	N_of_particles = length(sys.particles)
+	@show(N_of_particles)
+	@show(m)
+	
+
+	step_final = Int64(round(t_end/dt))
+	times = Float64[]
+	Ss = Float64[]
+	for k = 0 : step_final
         verlet_step!(sys)
         save_results!(out, sys, k)
+    	if k % round(step_final/100) == 0 # store a number of entropy values
+			distr = velocity_histogram(sys, N = 100)
+			S = entropy_2D_MB(distr)
+			push!(times, k*dt)
+			push!(Ss, S)
+			@show(S)
+		end
 	end
+
+	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
+	T = plot_velocity_distr(sys, "energy_distribution_middle.pdf")
+
+	# Plotting the entropy in time
+	Sred_eq_E = (1+log(sum(p -> energy(sys,p), sys.particles)/(m*length(sys.particles))))*ones(Float64,length(Ss))
+	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
+	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"])
+	savefig(p, "entropy_middle.pdf")
+
     #revert velocities
+	println("--------------------")
+	println("Reverting velocities")
+	println("--------------------")
     for p in sys.particles
         p.v = -p.v
     end
-    for k = Int64(round(t_end/dt)):-1:0
+	Ss_rev = Float64[]
+    for k = step_final:-1:0
         verlet_step!(sys)
         save_results!(out, sys, k)
+    	if k % round(step_final/100) == 0 # store a number of entropy values
+			distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
+			S = entropy_2D_MB(distr)
+			push!(times, k*dt)
+			push!(Ss_rev, S)
+			@show(S)
+		end
 	end
+
 	save_pvd_file(out)
+
+	plot_velocity_distr(sys, "energy_distribution_final.pdf")
+
+	# Plotting the entropy in time
+	Sred_eq_E = (1+log(sum(p -> energy(sys,p), sys.particles)/(m*length(sys.particles))))*ones(Float64,length(Ss))
+	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
+	p = plot(times, [Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"])
+	savefig(p, "entropy_final.pdf")
 end ## function main
 
-function boltzmann(beta, e)::Float64
-	return beta*exp(-e*beta)
+#function boltzmann(beta, e)::Float64
+#	return beta*exp(-e*beta)
+#end
+
+"""
+	Histogram(xs::Vector{Float64}, ys::Vector{Float64},N,dx)
+
+Histogram structure storing ``N`` x values ``xs`` with uniform bin width ``dx`` and ``N`` y values ``ys``.
+"""
+struct Histogram
+	xs::Vector{Float64}
+	ys::Vector{Float64}
+	N::Int64
+	dx::Float64
 end
 
-function plot_energy_distr(path::String)
-	N = 100
-	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height)
-	sys = ParticleSystem(Particle, domain, h)
-	read_vtk!(sys, path, x -> Particle(x = x, type = 0.0))
-	v_max = sqrt(2*norm(g)*water_column_height)
-	dv = v_max/N
+"""
+	velocity_histogram(sys::ParticleSystem; v_max = 0, N = 10)
+
+Building the histrogram of 2D velocities (norms) with ``v_max`` the maximum velocity in the histogram and ``N`` bins.
+"""
+function velocity_histogram(sys::ParticleSystem; v_max = 0.0, N = 100)::Histogram
+	v_max = sqrt(2*norm(g)*water_column_height) #maximum velocity (that from the top of the column gets when dropping to the bottom)
+	if v_max == 0.0 # if v_max = 0, find the maximum velocity of the particles
+		for k in 1:length(sys.particles) 
+			v = norm(sys.particles[k].v)
+			if v > v_max
+				v_max = v
+			end
+		end
+	end
+
+	# Find the heights of the histogram bins
+	dv = v_max/N # velocity increment between the bins
 	vs = 0.:dv:v_max
 	ns = zeros(length(vs))
 	for k in 1:length(sys.particles)
@@ -224,25 +294,93 @@ function plot_energy_distr(path::String)
 			ns[n] += 1.0/(dv*length(sys.particles))
 		end
 	end
-	model = Model(Ipopt.Optimizer)
+
+	return Histogram(vs,ns,100,dv)
+end
+
+
+
+"""
+	kB
+
+Boltzmann constant (in the SI units)
+"""
+const kB = 1.380649e-23
+
+"""
+	entropy(fMB::Histogram)::Float64
+
+Calculate Boltzmann entropy of a 2D Maxwell-Boltzmann distribution approximated by an ``fMB`` histogram.
+"""
+function entropy_2D_MB(fMB::Histogram)::Float64
+	@assert(fMB.xs[1] == 0) # Assuming that the histogram starts at zero velocity
+
+	S = 0.0
+
+	# Approximating the reduced entropy near v=0, where a numerical singularity could appear
+	fMBder = (fMB.ys[2]-fMB.ys[1])/fMB.dx
+	if fMBder > 0
+		S = - fMB.ys[1] * (log(fMBder)*fMB.dx - fMBder*(fMB.dx^3)/6)
+	end
+
+	# Approximating the rest of entropy
+	for k in 2:length(fMB.xs)
+		if fMB.xs[k] != 0
+			if fMB.ys[k] > 0
+				S += -fMB.ys[k] * log(fMB.ys[k]/fMB.xs[k]) * fMB.dx
+			end
+		end
+	end
+
+	return S
+end
+
+""" 
+	plot_velocity_distr(sys::ParticleSystem, name::String)
+
+Plots the distribution of velocity magnitudes among the particles of ``sys`` and saves the resulting pdf,
+together with a fit of the Maxwell-Boltzmann distribution, to file ``name``.
+Returns the temperature.
+"""
+function plot_velocity_distr(sys::ParticleSystem, name::String; v_max = 0.0)::Float64
+	distr = velocity_histogram(sys, v_max=v_max, N = 100)
 	
+	# fitting the histogram to a 2D Maxwell-Boltzmann distribution
+	model = Model(Ipopt.Optimizer)
 	@variable(model, beta)
 	@NLobjective(
-            model,
-            Min,
-            sum((ns[i] - m*beta*vs[i]*exp(-0.5*m*beta*vs[i]^2))^2 for i in 1:length(ns)),
-        )
-    optimize!(model)
+			model,
+			Min,
+			sum((distr.ys[i] - m*beta*distr.xs[i]*exp(-0.5*m*beta*distr.xs[i]^2))^2 for i in 1:length(distr.xs)),
+		) 
+	optimize!(model)
 	beta = value(beta)
-	ns_boltz = zeros(length(vs))
+
+	# Plotting both the actual histogram and the fitted Maxwell-Boltzmann distribution
+	ns_boltz = zeros(length(distr.xs))
 	for i in 1:length(ns_boltz)
-		ns_boltz[i] = m*beta*vs[i]*exp(-0.5*m*beta*vs[i]^2)
+		ns_boltz[i] = m*beta*distr.xs[i]*exp(-0.5*m*beta*distr.xs[i]^2)
 	end
-	p = plot(vs, [ns ns_boltz], label = ["data" "boltz"])
-	savefig(p, "energy_distr.pdf")
 	@show(beta)
-	T = 1/(beta*1.380649e-23)
+	T = 1/(beta*kB)
 	@show(T)
+
+	p = plot(distr.xs, [distr.ys ns_boltz], label = ["data" "Maxwell-Boltzmann, T="*string(T)])
+	savefig(p, name)
+	return T
+end
+
+"""
+	plot_velocity_distr(path::String, name:: String)
+
+Plot velocity distribution of particles loaded from a VTK file.
+"""
+function plot_velocity_distr(path::String, name::String)
+	@error "Not working, sorry"
+	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height) 
+	sys = ParticleSystem(Particle, domain, h)
+	read_vtk!(sys, path, x -> Particle(x = x, type = 0.0))
+	plot_velocity_distr(sys, name)  #not yet working
 end
 
 end ## module
