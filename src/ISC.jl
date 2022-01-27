@@ -1,4 +1,3 @@
-using Printf
 using SparseArrays
 
 function add_element!(I::Vector{Int64}, J::Vector{Int64}, V::Vector{Float64}, i::Int64, j::Int64, v::Float64)
