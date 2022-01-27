@@ -51,7 +51,7 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 2.00
+const t_end = 1.00
 const dt_frame = t_end/100
 
 ##particle types
@@ -185,7 +185,7 @@ function save_results!(out::SPHLib.DataStorage, sys::ParticleSystem, k::Int64)
     end
 end
 
-function main()
+function main(;revert = true)
 	sys = make_system()
 	out = new_pvd_file("results/collapse_fixpa")
     #initialization
@@ -226,32 +226,34 @@ function main()
 	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
 	savefig(p, "entropy_middle.pdf")
 
-    #revert velocities
-	println("--------------------")
-	println("Reverting velocities")
-	println("--------------------")
-    for p in sys.particles
-        p.v = -p.v
-    end
-	Ss_rev = Float64[]
-    for k = step_final:-1:0
-        verlet_step!(sys)
-        save_results!(out, sys, k)
-    	if k % round(step_final/100) == 0 # store a number of entropy values
-			distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
-			S = entropy_2D_MB(distr)
-			push!(Ss_rev, S)
-			@show(S)
+	if revert
+		#revert velocities
+		println("--------------------")
+		println("Reverting velocities")
+		println("--------------------")
+		for p in sys.particles
+			p.v = -p.v
 		end
+		Ss_rev = Float64[]
+		for k = step_final:-1:0
+			verlet_step!(sys)
+			save_results!(out, sys, k)
+			if k % round(step_final/100) == 0 # store a number of entropy values
+				distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
+				S = entropy_2D_MB(distr)
+				push!(Ss_rev, S)
+				@show(S)
+			end
+		end
+		plot_velocity_distr(sys, "energy_distribution_final.pdf")
+
+		# Plotting the entropy in time
+		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
+		savefig(p, "entropy_final.pdf")
 	end
 
 	save_pvd_file(out)
 
-	plot_velocity_distr(sys, "energy_distribution_final.pdf")
-
-	# Plotting the entropy in time
-	p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
-	savefig(p, "entropy_final.pdf")
 end ## function main
 
 #function boltzmann(beta, e)::Float64
@@ -276,7 +278,6 @@ end
 Building the histrogram of 2D velocities (norms) with ``v_max`` the maximum velocity in the histogram and ``N`` bins.
 """
 function velocity_histogram(sys::ParticleSystem; v_max = 0.0, N = 100)::Histogram
-	v_max = sqrt(2*norm(g)*water_column_height) #maximum velocity (that from the top of the column gets when dropping to the bottom)
 	if v_max == 0.0 # if v_max = 0, find the maximum velocity of the particles
 		for k in 1:length(sys.particles) 
 			v = norm(sys.particles[k].v)
