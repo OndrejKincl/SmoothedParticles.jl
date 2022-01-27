@@ -1,3 +1,5 @@
+#THIS PIECE OF CODE IS NOT INCLUDED IN SPHLIB.jl (TO BE ADDED IN FUTURE).
+
 using SparseArrays
 
 function add_element!(I::Vector{Int64}, J::Vector{Int64}, V::Vector{Float64}, i::Int64, j::Int64, v::Float64)
