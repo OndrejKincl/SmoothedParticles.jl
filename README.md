@@ -3,4 +3,4 @@ A lightweight framework for smoothed particle hydrodynamics (SPH) for 2d and 3d.
 This is still in development and the API can be subject to changes.
 
 
-[Documentation] (https://ondrejkincl.github.io/SmoothedParticles.jl/dev/index.html)
+[Documentation](https://ondrejkincl.github.io/SmoothedParticles.jl/dev/index.html)
