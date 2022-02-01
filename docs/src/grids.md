@@ -1,6 +1,6 @@
 # Grids
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["grids.jl"]
 ```

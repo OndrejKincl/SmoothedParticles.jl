@@ -11,11 +11,12 @@ Here with strictly incompressible approach (Projection method).
 module collapse_dry_implicit
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+include("../src/SmoothedParticles.jl")
+using .SmoothedParticles
 using LinearAlgebra
 using IterativeSolvers
 using IncompleteLU
+using Parameters
 ````
 
 Declare constant parameters
@@ -26,14 +27,12 @@ const kernel = spline23
 const Dkernel = Dspline23
 const rDkernel = rDspline23
 
-const dr = 4.0e-3         #average particle distance (decrease to make finer simulation)
+const dr = 2.0e-2         #average particle distance (decrease to make finer simulation)
 const h = 2.8*dr          #size of kernel support
 const rho0 = 1000.0       #fluid density
 const g = -9.8*VECY       #gravitational acceleration
-const mu = 0.0#8.4e-4     #dynamic viscosity
+const mu = 8.4e-4     #dynamic viscosity
 const m = dr^2*rho0       #particle mass
-
-const Lmin = 3*kernel(h,0.)/rho0*(pi - (dr/h)^2)  #free particles are those that satisfy L < Lmin
 
 ##geometry parameters
 const water_column_width = 1.0
@@ -44,9 +43,9 @@ const nlayers = 3.5 #number of wall layers
 const wall_width = nlayers*dr
 
 ##temporal parameters
-const dt = h/20.0
-const dt_frame = 0.01
-const t_end = 0.5
+const dt = h/40.0
+const t_end = 1.0
+const dt_frame = t_end/50
 
 ##labels for particle types
 const FLUID = 0.
@@ -57,19 +56,15 @@ const DUMMY = 2.
 Declare variables to be stored in a Particle
 
 ````julia
-mutable struct Particle <: AbstractParticle
-	x::RealVector #position
-	v::RealVector #velocity
-	a::RealVector #acceleration
-	P::Float64 #pressure
-	div::Float64 #divergence of velocity
-	L::Float64 #free surface identier
+@with_kw mutable struct Particle <: AbstractParticle
+	x::RealVector = VEC0 #position
+	v::RealVector = VEC0 #velocity
+	a::RealVector = VEC0 #acceleration
+	P::Float64 = 0. #pressure
+	div::Float64 = 0. #divergence of velocity
+	L::Float64 = 0. #free surface identier
+	L0::Float64 = 0.
 	type::Float64 #particle type
-	Particle(x, type) = new(
-		x, VEC0, VEC0,
-		0., 0., 0.,
-		type
-	)
 end
 ````
 
@@ -86,9 +81,13 @@ function make_system()
 	dummy = Specification(dummy, x -> (x[2] < box_height))
 	domain = Rectangle(-nlayers*dr, -nlayers*dr, 2*box_width, 3*box_height)
 	sys = ParticleSystem(Particle, domain, h)
-	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
-	generate_particles!(sys, grid, walls, x -> Particle(x, WALL))
-	generate_particles!(sys, grid, dummy, x -> Particle(x, DUMMY))
+	generate_particles!(sys, grid, fluid, x -> Particle(x=x, type=FLUID))
+	generate_particles!(sys, grid, walls, x -> Particle(x=x, type=WALL))
+	generate_particles!(sys, grid, dummy, x -> Particle(x=x, type=DUMMY))
+	create_cell_list!(sys)
+	apply!(sys, find_L0!)
+	Lmax = maximum(p -> p.L0, sys.particles)
+	ParticleField(sys, :L0) .= Lmax
 	return sys
 end
 ````
@@ -109,9 +108,13 @@ end
 	p.a += 2.0*m*mu*rDkernel(h,r)/rho0^2*(p.v - q.v)
 end
 
-function find_div_and_L!(p::Particle, q::Particle, r::Float64)
-	p.div += -SPHLib.dot(p.x - q.x, p.v - q.v)*m*rDkernel(h,r)/rho0
+@inbounds function find_div_and_L!(p::Particle, q::Particle, r::Float64)
+	p.div += -SmoothedParticles.dot(p.x - q.x, p.v - q.v)*m*rDkernel(h,r)/rho0
 	p.L += -2.0*m*rDkernel(h,r)/rho0^2
+end
+
+@inbounds function find_L0!(p::Particle, q::Particle, r::Float64)
+	p.L0 += -2.0*m*rDkernel(h,r)/rho0^2
 end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
@@ -131,7 +134,7 @@ Functions to build the linear system
 ````julia
 function minus_laplace(p::Particle, q::Particle, r::Float64)::Float64
 	if p == q
-		return p.type == DUMMY ? p.L : max(p.L, Lmin)
+		return p.type == FLUID ? max(p.L, p.L0) : p.L
 	end
 	return 2.0*m*rDkernel(h,r)/rho0^2
 end
@@ -160,7 +163,7 @@ function main()
 		end
 		apply!(sys, initialize!)
 		create_cell_list!(sys)
-		#apply!(sys, viscous_force!)
+		apply!(sys, viscous_force!)
 
 		##assemble linear system and solve for pressure
 		apply!(sys, find_div_and_L!)

@@ -7,8 +7,8 @@
 module cavity_flow
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+include("../src/SmoothedParticles.jl")
+using .SmoothedParticles
 
 
 #=

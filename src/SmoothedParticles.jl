@@ -1,4 +1,4 @@
-module SPHLib
+module SmoothedParticles
 import WriteVTK
 import SparseArrays
 import StaticArrays

@@ -1,5 +1,4 @@
-using Pkg, Documenter, Literate
-include("../src/SPHLib.jl")
+using Pkg, Documenter, Literate, SmoothedParticles
 
 #
 # Replace SOURCE_URL marker with github url of source
@@ -12,9 +11,6 @@ function replace_source_url(input,source_url)
     end
     return String(take!(lines_out))
 end
-
-
-
 
 function make_all()
     #
@@ -49,11 +45,11 @@ function make_all()
     println(generated_examples)
 
     makedocs(
-        sitename="SPHLib.jl",
+        sitename="SmoothedParticles.jl",
         clean = true,
         doctest = true,
         authors = "O. Kincl",
-        modules = [SPHLib],
+        modules = [SmoothedParticles],
         format = Documenter.HTML(prettyurls = false),
         pages=[
             "Home"=>"index.md",

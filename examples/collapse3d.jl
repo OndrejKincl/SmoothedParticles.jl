@@ -7,8 +7,8 @@
 module collapse3d
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+include("../src/SmoothedParticles.jl")
+using .SmoothedParticles
 
 #=
 Declare constant parameters
@@ -72,7 +72,7 @@ function make_system()
 	fluid = Box(0., 0., 0., water_column_width, water_column_height, box_depth)
 	walls = BoundaryLayer(box, grid, wall_width)
 	walls = Specification(walls, x -> (x[2] < box_height))
-	domain = SPHLib.boundarybox(walls)
+	domain = SmoothedParticles.boundarybox(walls)
 	sys = ParticleSystem(Particle, domain, h)
 	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
 	generate_particles!(sys, grid, walls, x -> Particle(x, WALL))

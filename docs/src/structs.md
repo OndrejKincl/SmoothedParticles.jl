@@ -1,6 +1,6 @@
 # Structs
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["structs.jl"]
 ```

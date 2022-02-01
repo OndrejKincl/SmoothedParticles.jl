@@ -4,7 +4,7 @@
 	<img src='../assets/static_container.png' width="50%" height="50%" alt='missing' /><br>
 ```
 
-This is hello world of SPH.
+This is a hello world example of SPH.
 Simulates motionless fluid in uniform gravitational field.
 Things that may be tested by this benchmark are:
 * walls,
@@ -17,8 +17,8 @@ Let us begin by declaring a module and importing some stuff.
 module static_container
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+include("../src/SmoothedParticles.jl")
+using .SmoothedParticles
 ````
 
 Declare constant parameters

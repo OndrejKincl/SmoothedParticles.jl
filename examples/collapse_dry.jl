@@ -13,8 +13,8 @@ This is, where SPH is more useful than typical mesh-based methods
 module collapse_dry
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+include("../src/SmoothedParticles.jl")
+using .SmoothedParticles
 using CSV
 using DataFrames
 
@@ -41,7 +41,7 @@ const wall_width = 2.5*dr
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.2
+const t_end = 1.0
 const dt_frame = t_end/50
 
 

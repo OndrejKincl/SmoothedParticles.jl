@@ -1,6 +1,6 @@
 # Core
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["core.jl"]
 ```

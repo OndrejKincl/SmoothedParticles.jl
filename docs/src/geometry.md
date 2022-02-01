@@ -1,6 +1,6 @@
 # Geometry
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["geometry.jl"]
 ```

@@ -5,6 +5,6 @@ between neighbouring particles based on their distance. They are also used to
 interpolate particle variables into continuous Eulerian fields.
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["kernels.jl"]
 ```

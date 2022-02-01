@@ -1,6 +1,6 @@
 # Input/Output
 
 ```@autodocs
-Modules = [SPHLib]
+Modules = [SmoothedParticles]
 Pages = ["IO.jl"]
 ```
