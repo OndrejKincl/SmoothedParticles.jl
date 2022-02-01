@@ -17,4 +17,4 @@ jobs:
           Pkg.instantiate();
           Pkg.activate(".");
           Pkg.build();
-          include("docs/make.jl")
+          include("docs/make.jl");'
