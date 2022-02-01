@@ -69,6 +69,6 @@ end
 make_all()
 
 deploydocs(
-    repo = "github.com/OndrejKincl/SPHLib.jl.git",
+    repo = "github.com/OndrejKincl/SmoothedParticles.jl.git",
 )
             
