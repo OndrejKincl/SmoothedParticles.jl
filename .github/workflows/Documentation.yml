@@ -18,4 +18,5 @@ jobs:
           Pkg.activate(".");
           Pkg.build();
           Pkg.add("Documenter");
+          Pkg.add("Literate");
           include("docs/make.jl");'
