@@ -26,8 +26,9 @@ function make_all()
         "collapse_dry_implicit.jl",
         "cavity_flow.jl",
         "cylinder.jl",
+        "drop.jl",
         "collapse3d.jl",
-        "drop.jl"
+        "collapse_symplectic.jl"
     ]
     example_md_dir  = joinpath(@__DIR__,"src","examples")
     generated_examples = []
@@ -64,7 +65,9 @@ function make_all()
                 "structs.md",
                 "geometry.md",
                 "IO.md",
-                "grids.md"
+                "grids.md",
+                "FixPA.md",
+                "entropy.md"
             ],
         ]
     )

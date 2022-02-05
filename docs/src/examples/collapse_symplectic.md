@@ -1,5 +1,3 @@
-#=
-
 # 8: Water collapse (explicit, symplectic, and reversible)
 
 ```@raw html
@@ -7,11 +5,11 @@
 ```
 
 Simulation of a water column collapsing under its own weight onto dry bottom.
-Here we use a symplectic scheme and get a reversible simulation. 
+Here we use a symplectic scheme and get a reversible simulation.
 At the end of the simulation, the velocities are reverted and the simulation goes back to its initial conditions.
 Despite the reversibility, Boltzmann entropy grows and attains its maximum value just before the velocities are reverted.
-=#
 
+````julia
 module collapse_symplectic
 
 using Printf
@@ -22,11 +20,11 @@ using Plots
 
 #using ReadVTK  #not implemented
 #using VTKDataIO
+````
 
-#=
 Declare constant parameters
-=#
 
+````julia
 ##physical
 const dr = 3.0e-3          #average particle distance (decrease to make finer simulation)
 const h = 3.0*dr           #size of kernel support
@@ -67,11 +65,11 @@ const WALL = 1.
     rho0::Float64 = 0.
 	type::Float64 #particle_type
 end
+````
 
-#=
 Define geometry and make particles
-=#
 
+````julia
 function make_system()
 	grid = Grid(dr, :square)
 	box = Rectangle(0., 0., box_width, box_height)
@@ -84,11 +82,11 @@ function make_system()
 	generate_particles!(sys, grid, walls, x -> Particle(x = x, type = WALL))
 	return sys
 end
+````
 
-#=
 Define particle interactions
-=#
 
+````julia
 @inbounds function find_rho!(p::Particle, q::Particle, r::Float64)
     if p.type == FLUID && q.type == FLUID
 		p.rho += m*wendland2(h,r)
@@ -113,7 +111,7 @@ end
 	elseif p.type == FLUID && q.type == WALL && r < dr_wall
 		s = dr_wall/(r + eps)
 		p.a += -E_wall/(r + eps)^2*(s^2 - s^4)*(p.x - q.x)
-	end	
+	end
 end
 
 function reset_a!(p::Particle)
@@ -156,11 +154,11 @@ function energy(sys::ParticleSystem, p::Particle)::Float64
 	wall_potential = SPHLib.sum(sys, LJ_potential, p)
 	return kinetic + internal + gravity_potential + wall_potential
 end
+````
 
-#=
 Put everything into a time loop
-=#
 
+````julia
 function verlet_step!(sys::ParticleSystem)
     apply!(sys, accelerate!)
     apply!(sys, move!)
@@ -198,7 +196,7 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	N_of_particles = length(sys.particles)
 	@show(N_of_particles)
 	@show(m)
-	
+
 
 	step_final = Int64(round(t_end/dt))
 	times = Float64[] #time instants
@@ -217,11 +215,17 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
         	println()
 		end
 	end
+````
 
-	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
+Plotting the velocity distribution in comparison with Maxwell-Boltzmann
+
+````julia
 	T = plot_velocity_distr(sys, m, "energy_distribution_middle.pdf")
+````
 
-	# Plotting the entropy in time
+Plotting the entropy in time
+
+````julia
 	Sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
 	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
 	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
@@ -248,8 +252,11 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 			end
 		end
 		plot_velocity_distr(sys, m, "energy_distribution_final.pdf")
+````
 
-		# Plotting the entropy in time
+Plotting the entropy in time
+
+````julia
 		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
 		savefig(p, "entropy_final.pdf")
 	end
@@ -259,4 +266,9 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 end ## function main
 
 end ## module
+````
+
+---
+
+*This page was generated using [Literate.jl](https://github.com/fredrikekre/Literate.jl).*
 
