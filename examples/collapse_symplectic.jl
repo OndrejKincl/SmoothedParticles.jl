@@ -19,6 +19,8 @@ include("../src/SPHLib.jl")
 using .SPHLib
 using Parameters
 using Plots
+using DataFrames # to store the csv file
+using CSV# to store the csv file
 
 #using ReadVTK  #not implemented
 #using VTKDataIO
@@ -51,7 +53,7 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 1.0
+const t_end = 2.1
 const dt_frame = t_end/100
 
 ##particle types
@@ -226,6 +228,8 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
 	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
 	savefig(p, "entropy_middle.pdf")
+	df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
+	CSV.write("entropy_middle.csv", df)
 
 	if revert
 		#revert velocities
@@ -252,6 +256,8 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 		# Plotting the entropy in time
 		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
 		savefig(p, "entropy_final.pdf")
+		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
+		CSV.write("entropy_final.csv", df)
 	end
 
 	save_pvd_file(out)
