@@ -24,17 +24,9 @@ using Roots
 #=
 Declare constant parameters
 =#
-##physical
+##graviational
 const r0 = 10.0 #central ring radius
-const N = 100 #particles per the central ring
-const dr = 2*pi*r0/N          #average particle distance (decrease to make finer simulation)
-@show dr
-const h = 3.0*dr           #size of kernel support
-const rho0 = 1.   	   #fluid density
-const m = rho0*dr^2        #particle mass
-#const mu = 0.0#8.4e-4          #dynamic viscosity of water
 const GM = 1000.
-#const N = 9745
 
 function vphi_r(r::Float64)::Float64
 	return sqrt(GM)/sqrt(r)
@@ -61,8 +53,19 @@ function r_f(F::Float64)::Float64
 	return find_zero(x -> (f_interpolation_scaled(x)-F), r0)
 end
 @show r_f(0.5)
+
+## computational
 #const rs_in_vortex = 7.:dr:14. # equidistant rings in the vortex. Boundaries chosen as the edges of the histogram for 10^4 points over the interval [0,1]
-const rs_in_vortex = [r_f(u) for u in 0.01:(0.99-0.01)/25:0.99] # Gaussian rings
+const N_rings = 25
+@show N_rings
+const rs_in_vortex = [r_f(u) for u in 0.01:(0.99-0.01)/N_rings:0.99] # Gaussian rings
+dr = r_f(0.25+1/N_rings)-r_f(0.25)
+@show dr
+
+const h = 3.0*dr           #size of kernel support
+const rho0 = 1.   	   #fluid density
+const m = rho0*dr^2        #particle mass
+#const mu = 0.0#8.4e-4          #dynamic viscosity of water
 
 ##geometrical
 const box_width = 4*r0
@@ -77,7 +80,7 @@ const eps = 1e-16
 ##temporal
 const dt = 0.0001*h/c
 @show dt
-const t_end = 10 * 2 * pi / omega0
+const t_end = 10 * 2 * pi / omega0 #ten revolutions
 @show t_end
 const dt_frame = t_end/1000
 
