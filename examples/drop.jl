@@ -1,6 +1,6 @@
 #=
 
-# 5: Surface tension simulation in 3D
+# 6: Surface tension simulation in 3D
 
 WARNING: Takes very long time to compute (hours on cluster for 0.1 second)
 
