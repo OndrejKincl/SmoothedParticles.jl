@@ -1,6 +1,8 @@
 #=
 
-# 7: Water collapse 3d
+# 7: Water collapse in 3D
+
+A three dimensional variant of dam-break example.
 
 =#
 
