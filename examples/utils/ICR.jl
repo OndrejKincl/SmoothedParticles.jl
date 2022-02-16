@@ -1,3 +1,6 @@
+module ICR
+
+using SmoothedParticles
 using Printf
 using SparseArrays
 
@@ -76,4 +79,6 @@ function renormalize!(sys::ParticleSystem, dr::Float64;
             sys.particles[i].x += RealVector(y[i], y[i+N], 0.)
         end
 	end
+end
+
 end

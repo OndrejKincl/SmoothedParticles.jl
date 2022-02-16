@@ -13,8 +13,7 @@ Here with strictly incompressible approach (Projection method).
 module collapse_dry_implicit
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 using LinearAlgebra
 using IterativeSolvers
 using IncompleteLU
@@ -28,7 +27,7 @@ const kernel = spline23
 const Dkernel = Dspline23
 const rDkernel = rDspline23
 
-const dr = 4.0e-3         #average particle distance (decrease to make finer simulation)
+const dr = 1.0e-2         #average particle distance (decrease to make finer simulation)
 const h = 2.8*dr          #size of kernel support
 const rho0 = 1000.0       #fluid density
 const g = -9.8*VECY       #gravitational acceleration
@@ -48,7 +47,7 @@ const wall_width = nlayers*dr
 ##temporal parameters
 const dt = h/20.0
 const dt_frame = 0.01
-const t_end = 0.5
+const t_end = 1.0
 
 ##labels for particle types
 const FLUID = 0.

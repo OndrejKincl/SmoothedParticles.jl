@@ -1,3 +1,7 @@
+module entropy
+export velocity_histogram, kB, entropy_2D_MB, plot_velocity_distr
+
+using SmoothedParticles
 using Plots: plot, savefig
 using Ipopt
 using JuMP
@@ -128,3 +132,5 @@ end
 #	read_vtk!(sys, path, x -> Particle(x = x, type = 0.0))
 #	plot_velocity_distr(sys, name)  #not yet working
 #end
+
+end

@@ -1,3 +1,8 @@
+module FixPA
+export rev_add
+
+using SmoothedParticles
+
 """
     FixPA_eps
 
@@ -34,4 +39,6 @@ function rev_add(x::RealVector, y::RealVector)::RealVector
     v2 = FixPA_eps*(nom(x[2]) + nom(y[2]))
     v3 = FixPA_eps*(nom(x[3]) + nom(y[3]))
     return RealVector(v1,v2,v3)
+end
+
 end

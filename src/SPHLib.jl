@@ -56,13 +56,4 @@ export save_frame!,
        new_pvd_file,
        save_pvd_file
 
-include("entropy.jl")
-export velocity_histogram,
-       kB,
-       entropy_2D_MB,
-       plot_velocity_distr
-
-include("FixPA.jl")
-export rev_add 
-
 end

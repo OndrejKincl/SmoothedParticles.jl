@@ -13,8 +13,7 @@ This is, where SPH is more useful than typical mesh-based methods
 module collapse_dry
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 using CSV
 using DataFrames
 
@@ -23,7 +22,7 @@ Declare constant parameters
 =#
 
 ##physical
-const dr = 2.0e-2          #average particle distance (decrease to make finer simulation)
+const dr = 1.0e-2          #average particle distance (decrease to make finer simulation)
 const h = 3.0*dr           #size of kernel support
 const rho0 = 1000.   	   #fluid density
 const m = rho0*dr^2        #particle mass
@@ -41,7 +40,7 @@ const wall_width = 2.5*dr
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.2
+const t_end = 1.0
 const dt_frame = t_end/50
 
 

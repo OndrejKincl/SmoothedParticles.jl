@@ -7,8 +7,7 @@
 module collapse3d
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 
 #=
 Declare constant parameters

@@ -7,8 +7,7 @@
 module geometry_test
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 
 #=
 Declare constant parameters

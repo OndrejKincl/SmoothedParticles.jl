@@ -11,8 +11,7 @@ Kepler vortex ... TODO
 module Kepler_vortex
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 using Parameters
 using Plots
 using DataFrames # to store the csv file
@@ -20,6 +19,10 @@ using CSV # to store the csv file
 using QuadGK #To calculate the integral over Σ
 using Interpolations
 using Roots
+include("utils/FixPA.jl")
+include("utils/entropy.jl")
+using .FixPA
+using .entropy
 
 #=
 Declare constant parameters
@@ -80,9 +83,9 @@ const eps = 1e-16
 ##temporal
 const dt = 0.0001*h/c
 @show dt
-const t_end = 10 * 2 * pi / omega0 #ten revolutions
+const t_end = 100 * 2 * pi / omega0 #ten revolutions
 @show t_end
-const dt_frame = t_end/1000
+const dt_frame = t_end/200
 
 ##particle types
 const FLUID = 0.
@@ -210,7 +213,7 @@ function energy(sys::ParticleSystem, p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	internal =  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
 	gravity_potential = - GM*m/(norm(p.x))
-	wall_potential = SPHLib.sum(sys, LJ_potential, p)
+	wall_potential = SmoothedParticles.sum(sys, LJ_potential, p)
 	return kinetic + internal + gravity_potential + wall_potential
 end
 
@@ -230,7 +233,7 @@ function verlet_step!(sys::ParticleSystem)
     apply!(sys, accelerate!)
 end
 
-function save_results!(out::SPHLib.DataStorage, sys::ParticleSystem, k::Int64)
+function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, k::Int64)
     if (k %  Int64(round(dt_frame/dt)) == 0)
         @printf("t = %.6e\n", k*dt)
         #energy
@@ -282,15 +285,15 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	end
 
 	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
-	#T = plot_velocity_distr(sys, m, "energy_distribution_middle.pdf")
+	#T = plot_velocity_distr(sys, m, "results/Kepler_vortex/energy_distribution_middle.pdf")
 
 	# Plotting the entropy in time
 #	sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
 #	sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
 #	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
-#	savefig(p, "entropy_middle.pdf")
+#	savefig(p, "results/Kepler_vortex/entropy_middle.pdf")
 #	df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-#	CSV.write("entropy_middle.csv", df)
+#	CSV.write("results/Kepler_vortex/entropy_middle.csv", df)
 
 #	if revert
 #		#revert velocities
@@ -312,13 +315,13 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 #				println()
 #			end
 #		end
-#		plot_velocity_distr(sys, m, "energy_distribution_final.pdf")
+#		plot_velocity_distr(sys, m, "results/Kepler_vortex/energy_distribution_final.pdf")
 #
 #		# Plotting the entropy in time
 #		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
-#		savefig(p, "entropy_final.pdf")
+#		savefig(p, "results/Kepler_vortex/entropy_final.pdf")
 #		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-#		CSV.write("entropy_final.csv", df)
+#		CSV.write("results/Kepler_vortex/entropy_final.csv", df)
 #	end
 
 	save_pvd_file(out)

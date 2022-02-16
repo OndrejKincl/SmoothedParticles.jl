@@ -15,12 +15,16 @@ Despite the reversibility, Boltzmann entropy grows and attains its maximum value
 module collapse_symplectic
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 using Parameters
 using Plots
 using DataFrames # to store the csv file
 using CSV# to store the csv file
+include("utils/FixPA.jl")
+include("utils/entropy.jl")
+using .FixPA
+using .entropy
+
 
 #using ReadVTK  #not implemented
 #using VTKDataIO
@@ -30,7 +34,7 @@ Declare constant parameters
 =#
 
 ##physical
-const dr = 3.0e-3          #average particle distance (decrease to make finer simulation)
+const dr = 1.0e-2          #average particle distance (decrease to make finer simulation)
 const h = 3.0*dr           #size of kernel support
 const rho0 = 1000.   	   #fluid density
 const m = rho0*dr^2        #particle mass
@@ -38,10 +42,10 @@ const g = -9.8*VECY  #gravitational acceleration
 const mu = 0.0#8.4e-4          #dynamic viscosity of water
 
 ##geometrical
-const water_column_width = 0.142
-const water_column_height = 0.293
-const box_height = 0.35
-const box_width = 0.584
+const water_column_width = 1.0
+const water_column_height = 2.0
+const box_height = 3.0
+const box_width = 4.0
 const wall_width = 2.5*dr
 
 
@@ -53,7 +57,7 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 2.1
+const t_end = 1.0
 const dt_frame = t_end/100
 
 ##particle types
@@ -155,7 +159,7 @@ function energy(sys::ParticleSystem, p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	internal =  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
 	gravity_potential = -m*dot(g, p.x)
-	wall_potential = SPHLib.sum(sys, LJ_potential, p)
+	wall_potential = SmoothedParticles.sum(sys, LJ_potential, p)
 	return kinetic + internal + gravity_potential + wall_potential
 end
 
@@ -175,7 +179,7 @@ function verlet_step!(sys::ParticleSystem)
     apply!(sys, accelerate!)
 end
 
-function save_results!(out::SPHLib.DataStorage, sys::ParticleSystem, k::Int64)
+function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, k::Int64)
     if (k %  Int64(round(dt_frame/dt)) == 0)
         @printf("t = %.6e\n", k*dt)
         #energy

@@ -9,8 +9,7 @@ WARNING: Takes very long time to compute (hours on cluster for 0.1 second)
 module drop
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 using Parameters
 
 #=

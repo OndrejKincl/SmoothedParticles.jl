@@ -19,8 +19,7 @@ Let us begin by declaring a module and importing some stuff.
 module static_container
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 
 #=
 Declare constant parameters

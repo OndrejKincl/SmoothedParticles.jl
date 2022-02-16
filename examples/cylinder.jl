@@ -17,8 +17,7 @@ All parameters of this benchmark can be found
 module cylinder
 
 using Printf
-include("../src/SPHLib.jl")
-using .SPHLib
+using SmoothedParticles
 
 const folder_name = "results/cylinder"
 
