@@ -7,8 +7,7 @@
 module collapse3d
 
 using Printf
-include("../src/SmoothedParticles.jl")
-using .SmoothedParticles
+import SmoothedParticles
 
 #=
 Declare constant parameters
