@@ -7,8 +7,7 @@
 module cavity_flow
 
 using Printf
-include("../src/SmoothedParticles.jl")
-using .SmoothedParticles
+using SmoothedParticles
 
 
 #=
