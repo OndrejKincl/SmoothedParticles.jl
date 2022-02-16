@@ -13,8 +13,7 @@ Here with strictly incompressible approach (Projection method).
 module collapse_dry_implicit
 
 using Printf
-include("../src/SmoothedParticles.jl")
-using .SmoothedParticles
+using SmoothedParticles
 using LinearAlgebra
 using IterativeSolvers
 using IncompleteLU
