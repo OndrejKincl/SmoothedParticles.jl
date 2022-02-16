@@ -13,8 +13,7 @@ This is, where SPH is more useful than typical mesh-based methods
 module collapse_dry
 
 using Printf
-include("../src/SmoothedParticles.jl")
-using .SmoothedParticles
+using SmoothedParticles
 using CSV
 using DataFrames
 
