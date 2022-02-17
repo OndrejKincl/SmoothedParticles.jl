@@ -29,8 +29,11 @@ Declare constant parameters
 =#
 ##graviational
 const r0 = 10.0 #central ring radius
-const GM = 1000.
+const GM = 1000. #graviational foce
 
+#=
+Calculate the Gaussian distribution of particles in the vortex, according to Cartwright et al.
+=#
 function vphi_r(r::Float64)::Float64
 	return sqrt(GM)/sqrt(r)
 end
@@ -48,11 +51,11 @@ function f(r::Float64)::Float64
 	return quadgk(Σ, 0, r, rtol=1.0e-03)[1]/denominator
 end
 
-const rs = 0.:0.5:25.0
+const rs = 0.:0.5:25.0 # collection of radii
 const f_table = [f(r) for r in rs]
 const f_interpolation = interpolate(f_table, BSpline(Cubic(Line(OnGrid()))))
 const f_interpolation_scaled = scale(f_interpolation, rs)
-function r_f(F::Float64)::Float64
+function r_f(F::Float64)::Float64 #radius as a function of the uniformly distributed random variable
 	return find_zero(x -> (f_interpolation_scaled(x)-F), r0)
 end
 @show r_f(0.5)
@@ -116,8 +119,6 @@ function generate_circle!(sys::ParticleSystem, r::Float64, dφ::Float64; φ_star
 		φ += dφ
 	end
 end
-
-
 
 function make_system()
     domain = Rectangle(-box_width, -box_width, box_width, box_width)
@@ -267,62 +268,10 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	
 
 	step_final = Int64(round(t_end/dt))
-#	times = Float64[] #time instants
-#	Ss = Float64[] # Entropy values
-#	Ekin = Float64[] # Kinetic energy values
 	for k = 0 : step_final
         verlet_step!(sys)
         save_results!(out, sys, k)
-#    	if k % round(step_final/100) == 0 # store a number of entropy values
-#			distr = velocity_histogram(sys, N = 100)
-#			S = entropy_2D_MB(distr)
-#			push!(times, k*dt)
-#			push!(Ss, S)
-#			push!(Ekin, energy_kinetic(sys))
-#			@show(S)
-#        	println()
-#		end
 	end
-
-	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
-	#T = plot_velocity_distr(sys, m, "results/Kepler_vortex/energy_distribution_middle.pdf")
-
-	# Plotting the entropy in time
-#	sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
-#	sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
-#	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
-#	savefig(p, "results/Kepler_vortex/entropy_middle.pdf")
-#	df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-#	CSV.write("results/Kepler_vortex/entropy_middle.csv", df)
-
-#	if revert
-#		#revert velocities
-#		println("--------------------")
-#		println("Reverting velocities")
-#		println("--------------------")
-#		for p in sys.particles
-#			p.v = -p.v
-#		end
-#		Ss_rev = Float64[]
-#		for k = step_final:-1:0
-#			verlet_step!(sys)
-#			save_results!(out, sys, k)
-#			if k % round(step_final/100) == 0 # store a number of entropy values
-#				distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
-#				S = entropy_2D_MB(distr)
-#				push!(Ss_rev, S)
-#				@show(S)
-#				println()
-#			end
-#		end
-#		plot_velocity_distr(sys, m, "results/Kepler_vortex/energy_distribution_final.pdf")
-#
-#		# Plotting the entropy in time
-#		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
-#		savefig(p, "results/Kepler_vortex/entropy_final.pdf")
-#		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-#		CSV.write("results/Kepler_vortex/entropy_final.csv", df)
-#	end
 
 	save_pvd_file(out)
 
