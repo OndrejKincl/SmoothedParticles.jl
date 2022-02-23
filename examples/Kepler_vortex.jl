@@ -5,7 +5,7 @@
 ```@raw html
 	<img src='../assets/Kepler.png' alt='missing' width="50%" height="50%" /><br>
 ```
-Kepler vortex ... TODO
+Kepler vortex, where a fluid forms a Gaussian ring rotating around the center of gravity. The ring is centered around ``r0=10`` with standard deviation ``2.5`` (approximately nine thousand particles). Strength of the gravity is ``GM=1000``, and speed of sound is chosen as ``c=0.001 v_\varphi``, where ``v_\varphi`` is the velocity at ``r_0``. The final time is approximately 63, which corresponds to ten revolutions of the ring.
 =#
 
 module Kepler_vortex
@@ -20,9 +20,7 @@ using QuadGK #To calculate the integral over Σ
 using Interpolations
 using Roots
 include("utils/FixPA.jl")
-include("utils/entropy.jl")
 using .FixPA
-using .entropy
 
 #=
 Declare constant parameters
@@ -124,15 +122,12 @@ function make_system()
     domain = Rectangle(-box_width, -box_width, box_width, box_width)
     sys = ParticleSystem(Particle, domain, h)
 
-	dφ = rs_in_vortex[2]/rs_in_vortex[1]-1.0
-	n_particles = 0
+	dφ = rs_in_vortex[2]/rs_in_vortex[1]-1.0 # increment in the angle
 	for i in 1:length(rs_in_vortex)-1 # not the last one because dphi would be unknown
 		r = rs_in_vortex[i]
 		generate_circle!(sys, r, dφ; vφ = vphi_r(r))	
 		dφ = (rs_in_vortex[i+1]-r)/r
-		n_particles += Int64(round(2*pi/dφ))
 	end
-	@show n_particles
 
 	return sys
 end
@@ -252,9 +247,10 @@ function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, 
     end
 end
 
-function main(;revert = true) #if revert=true, velocities are inverted at the end of the simulation and the simulation then goes backward
+function main() 
 	sys = make_system()
 	out = new_pvd_file("results/Kepler_vortex")
+
     #initialization
     create_cell_list!(sys)
     apply!(sys, find_rho0!, self = true)
@@ -265,7 +261,6 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	N_of_particles = length(sys.particles)
 	@show(N_of_particles)
 	@show(m)
-	
 
 	step_final = Int64(round(t_end/dt))
 	for k = 0 : step_final
