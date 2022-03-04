@@ -24,7 +24,8 @@ function make_all()
         "cylinder.jl",
         "drop.jl",
         "collapse3d.jl",
-        "collapse_symplectic.jl"
+        "collapse_symplectic.jl",
+        "Kepler_vortex.jl"
     ]
     example_md_dir  = joinpath(@__DIR__,"src","examples")
     generated_examples = []
