@@ -4,14 +4,17 @@ import SparseArrays
 import StaticArrays
 import Match
 
+include("algebra.jl")
+export RealVector, VECX, VECY, VECZ, VEC0,
+       RealMatrix, MAT0, MAT1,
+       FlatMatrix, FMAT0, FMAT1,
+       norm, dot
+
 include("structs.jl")
 export AbstractParticle, 
        ParticleSystem, 
        ParticleField, 
-       DataField,
-       RealVector, Vec2, Vec3,
-       RealMatrix, Mat2, Mat3,
-       VECX, VECY, VECZ, VEC0, MAT0, MAT1
+       DataField
 
 include("kernels.jl")
 export wendland2, Dwendland2, rDwendland2, 
@@ -26,9 +29,7 @@ export apply!,
        create_cell_list!, 
        dist, 
        assemble_matrix, 
-       assemble_vector,
-       dot,
-       norm
+       assemble_vector
 
 include("grids.jl")
 export Grid,

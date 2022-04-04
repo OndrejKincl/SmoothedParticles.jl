@@ -58,16 +58,12 @@ function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
         N = length(sys.particles)
         if Type <: Number
             frame[string(var)] = field
-        elseif Type <: RealVector
-            vals = zeros(Float64, 3, N)
-            for k in 1:N, i in 1:3
-                vals[i,k] = field[k][i]
-            end
-            frame[string(var)] = vals
-        elseif Type <: RealMatrix
-            vals = zeros(Float64, 3, 3, N)
-            for k in 1:N, i in 1:3, j in 1:3
-                vals[i,j,k] = field[k][i,j]
+        elseif Type <: AbstractArray
+            vals = zeros(size(Type)..., N)
+            for k in 1:N
+                for i in CartesianIndices(field[k])
+                    vals[i,k] = field[k][i]
+                end
             end
             frame[string(var)] = vals
         else   
