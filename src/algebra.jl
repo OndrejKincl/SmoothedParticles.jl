@@ -229,7 +229,7 @@ end
 Deviatoric part of matrix 2x2. That is, dev(A) = A - Tr(A)*I/2.
 """
 function dev(A::FlatMatrix)::FlatMatrix
-    return A - 0.5*trace(A)*MAT1
+    return A - 0.5*trace(A)*FMAT1
 end
 
 """
@@ -247,7 +247,7 @@ end
 Transpose of 2x2 matrix.
 """
 function trans(A::FlatMatrix)::FlatMatrix
-    @inbounds return FlatMatrix(A[1],A[2],A[3],A[4])
+    @inbounds return FlatMatrix(A[1],A[3],A[2],A[4])
 end
 
 """
