@@ -121,7 +121,7 @@ function det(A::RealMatrix)::Float64
 end
 
 """
-    trans(A::RealMatrix)::Float64
+    trans(A::RealMatrix)::RealMatrix
 
 Transpose of 3x3 matrix.
 """
@@ -242,12 +242,12 @@ function det(A::FlatMatrix)::Float64
 end
 
 """
-    trans(A::RealMatrix)::FlatMatrix
+    trans(A::FlatMatrix)::FlatMatrix
 
 Transpose of 2x2 matrix.
 """
 function trans(A::FlatMatrix)::FlatMatrix
-    @inbounds return RealMatrix(A[1],A[2],A[3],A[4])
+    @inbounds return FlatMatrix(A[1],A[2],A[3],A[4])
 end
 
 """
