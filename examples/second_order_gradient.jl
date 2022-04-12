@@ -1,4 +1,4 @@
-module quadratic
+module second_order_gradient
 using SmoothedParticles
 using Parameters
 using Plots
@@ -115,7 +115,7 @@ function test!(out, h::Float64, dr::Float64)::Float64
 end
 
 function main()
-    out = new_pvd_file("quadratic")
+    out = new_pvd_file("results/second_order_gradient")
     Es = []
     Ns = range(20, 300, 10)
     drs = []
@@ -133,9 +133,9 @@ function main()
         legend = :none,
         markershape = :star5
     )
-    savefig(p, "convergence_curve_g2.pdf")
+    savefig(p, "results/second_order_gradient/convergence_curve_g2.pdf")
     df = DataFrame(dr = drs, E = Es)
-	CSV.write("convergence_curve_g2.csv", df)
+	CSV.write("results/second_order_gradient/convergence_curve_g2.csv", df)
 end
 
 end
