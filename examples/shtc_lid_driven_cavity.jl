@@ -1,4 +1,4 @@
-module LDC
+module shtc_lid_driven_cavity
 using SmoothedParticles
 using Parameters
 import LinearAlgebra
@@ -17,7 +17,7 @@ const c_0 = sqrt(c_l^2 + 4/3*c_s^2)
 const dr = llid/60	        #average particle distance
 const tau = 6*rho0*vlid*llid/(Re*c_s^2)
 
-const name = "ldc_c40"
+const name = "results/ldc_c40"
 
 #artificial_viscosities
 const nu_v = 1e-6
