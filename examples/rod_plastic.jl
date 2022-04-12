@@ -213,7 +213,7 @@ end
 function main()
     sys = make_geometry()
     p_sel = argmax(p -> abs(p.x[1]) + abs(p.x[2]), sys.particles)
-    out = new_pvd_file("rod_plastic")
+    out = new_pvd_file("results/rod_plastic")
     csv_data = open("rod_plastic/rod.csv", "w")
     @time for k = 0 : Int64(round(t_end/dt))
         t = k*dt
@@ -241,11 +241,11 @@ function main()
     save_pvd_file(out)
     close(csv_data)
     #plot result
-    data = CSV.read("rod_plastic/rod.csv", DataFrame; header=false)
+    data = CSV.read("results/rod_plastic/rod.csv", DataFrame; header=false)
     p1 = plot(data[:,1], data[:,2], label = "", xlabel = "time", ylabel = "amplitude")
     p2 = plot(data[:,1], data[:,3], label = "", xlabel = "time", ylabel = "energy")
-    savefig(p1, "rod_plastic/amplitude.pdf")
-    savefig(p2, "rod_plastic/energy.pdf")
+    savefig(p1, "results/rod_plastic/amplitude.pdf")
+    savefig(p2, "results/rod_plastic/energy.pdf")
 end
 
 end
