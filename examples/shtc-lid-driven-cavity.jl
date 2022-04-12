@@ -1,4 +1,4 @@
-module LDC2
+module LDC
 using SmoothedParticles
 using Parameters
 import LinearAlgebra
