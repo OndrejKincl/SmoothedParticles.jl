@@ -214,7 +214,7 @@ function main()
     sys = make_geometry()
     p_sel = argmax(p -> abs(p.x[1]) + abs(p.x[2]), sys.particles)
     out = new_pvd_file("results/rod_plastic")
-    csv_data = open("rod_plastic/rod.csv", "w")
+    csv_data = open("results/rod_plastic/rod.csv", "w")
     @time for k = 0 : Int64(round(t_end/dt))
         t = k*dt
         if (k % Int64(round(dt_plot/dt)) == 0)
