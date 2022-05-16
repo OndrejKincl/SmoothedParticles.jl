@@ -35,7 +35,9 @@ include("grids.jl")
 export Grid,
        Squaregrid,
        Hexagrid,
-       CubicGrid
+       CubicGrid,
+       FacecenteredGrid,
+       BodycenteredGrid
 
 include("geometry.jl")
 export generate_particles!, 
