@@ -29,6 +29,7 @@ function Grid(dr::Float64, symm::Symbol)::Grid
         :cubic      => CubicGrid(dr)
         :facecentered      => FacecenteredGrid(dr)
         :bodycentered      => BodycenteredGrid(dr)
+	:diamond    => DiamondGrid(dr)
 	_ => @error("Unsupported grid type: "*string(symm))
     end
 end
@@ -189,19 +190,48 @@ function covering(grid::FacecenteredGrid, s::Shape)::Vector{RealVector}
         end
 	end
     for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
-        x = RealVector((i+0.5)*a, (j+0.5)*a, a)
+        x = RealVector((i+0.5)*a, (j+0.5)*a, k*a)
         if is_inside(x, s)
             push!(xs, x)
         end
-        x = RealVector((i+0.5)*a, a, (k+0.5)*a)
+        x = RealVector((i+0.5)*a, j*a, (k+0.5)*a)
         if is_inside(x, s)
             push!(xs, x)
         end
-        x = RealVector(a, (j+0.5)*a, (k+0.5)*a)
+        x = RealVector(i*a, (j+0.5)*a, (k+0.5)*a)
         if is_inside(x, s)
             push!(xs, x)
         end
 	end
+    return xs
+end
+
+mutable struct DiamondGrid <: Grid3
+    dr::Float64
+end
+
+function covering(grid::DiamondGrid, s::Shape)::Vector{RealVector}
+    xs = RealVector[]
+    box = boundarybox(s)
+    a = 0.5*grid.dr
+    i_min = Int64(floor(box.x1_min/a))
+    j_min = Int64(floor(box.x2_min/a))
+    k_min = Int64(floor(box.x3_min/a))
+    i_max = Int64(ceil(box.x1_max/a))
+    j_max = Int64(ceil(box.x2_max/a))
+    k_max = Int64(ceil(box.x3_max/a))
+    for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+	if isodd(i) == isodd(j) == isodd(k)
+	    s = (i + j + k)%4
+	    s = (s + 4)%4   #we want positive number after moduling (like every normal person)
+	    if s == 0 || s == 1
+                x = RealVector(i*a, j*a, k*a)
+                if is_inside(x, s)
+                    push!(xs, x)
+                end
+	    end
+	end
+    end
     return xs
 end
 
