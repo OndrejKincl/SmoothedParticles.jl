@@ -222,9 +222,9 @@ function covering(grid::DiamondGrid, s::Shape)::Vector{RealVector}
     k_max = Int64(ceil(box.x3_max/a))
     for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
 	if isodd(i) == isodd(j) == isodd(k)
-	    s = (i + j + k)%4
-	    s = (s + 4)%4   #we want positive number after moduling (like every normal person)
-	    if s == 0 || s == 1
+	    sum = (i + j + k)%4
+	    sum = (sum + 4)%4   #we want positive number after moduling (like every normal person)
+	    if sum == 0 || sum == 1
                 x = RealVector(i*a, j*a, k*a)
                 if is_inside(x, s)
                     push!(xs, x)
