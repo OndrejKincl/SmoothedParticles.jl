@@ -1,5 +1,6 @@
 module SmoothedParticles
 import WriteVTK
+import ReadVTK
 import SparseArrays
 import StaticArrays
 import Match
@@ -37,7 +38,8 @@ export Grid,
        Hexagrid,
        CubicGrid,
        FacecenteredGrid,
-       BodycenteredGrid
+       BodycenteredGrid,
+       DiamondGrid
 
 include("geometry.jl")
 export generate_particles!, 
@@ -51,12 +53,14 @@ export generate_particles!,
        BooleanIntersection, 
        BooleanDifference, 
        Specification, 
-       BoundaryLayer, 
+       BoundaryLayer,
+       Transform,
        is_inside
 
 include("IO.jl")
 export save_frame!, 
        new_pvd_file,
-       save_pvd_file
+       save_pvd_file,
+       import_particles!
 
 end

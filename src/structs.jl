@@ -68,13 +68,13 @@ struct ParticleSystem{T <: AbstractParticle}
 			key_max = prod(key_lim)
 			key_diff = Int64[]
 			if key_lim[3] == 1
-				@info("2D sim")
+				#@info("2D sim")
 				#simulation in 2d
 				for di in -1:1, dj in -1:1
 					push!(key_diff, di + key_lim[1]*dj)
 				end
 			else
-				@info("3D sim")
+				#@info("3D sim")
 				#simulation in 3d
 				for di in -1:1, dj in -1:1, dk in -1:1
 					push!(key_diff, di + key_lim[1]*(dj + key_lim[2]*dk))

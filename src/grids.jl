@@ -16,21 +16,24 @@ Define a grid with a given characterstic length ``\\text{d}r`` and symmetry type
 2D:
 1) `:square` (square grid)
 2) `:hexagonal` (hexagrid, dual of isometric grid)
-3) `:vogel` (grid based on Vogel's spiral)
+3) `:vogel` (grid based on Vogel's spiral, see: https://en.wikipedia.org/wiki/Fermat%27s_spiral)
 
 3D:
-1) `:cubic` (cubic grid)
+1) `:cubic` (cubic grid, see: https://en.wikipedia.org/wiki/Cubic_crystal_system)
+2) `:facecentered` (cubic face-centered grid)
+3) `:bodycentered` (cubic body-centered grid)
+4) `:diamond` (diamond cubic grid, see: https://en.wikipedia.org/wiki/Diamond_cubic)
 """
 function Grid(dr::Float64, symm::Symbol)::Grid
     return @match symm begin
-	:square 	=> Squaregrid(dr)
-	:hexagonal  => Hexagrid(dr)
+	    :square 	=> Squaregrid(dr)
+	    :hexagonal  => Hexagrid(dr)
         :vogel      => VogelGrid(dr)
         :cubic      => CubicGrid(dr)
         :facecentered      => FacecenteredGrid(dr)
         :bodycentered      => BodycenteredGrid(dr)
-	:diamond    => DiamondGrid(dr)
-	_ => @error("Unsupported grid type: "*string(symm))
+	    :diamond           => DiamondGrid(dr)
+	    _ => @error("Unsupported grid type: "*string(symm))
     end
 end
 
