@@ -48,7 +48,7 @@ function main()
         end
         # uncomment next line to create reference solution or to perform visual check
         #save("figure.png", img)
-        _img = RGB.(load("figure.png"))
+        _img = RGB.(load(joinpath(@__DIR__, "figure.png")))
         @test img == _img
     end
 end
