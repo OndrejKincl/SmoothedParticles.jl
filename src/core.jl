@@ -1,14 +1,10 @@
 using SparseArrays
 
-#fast scalar product and norm
-function dot(x::RealVector, y::RealVector)::Float64
-	return x[1]*y[1] + x[2]*y[2] + x[3]*y[3]
-end
+"""
+    dist(p::AbstractParticle, q::AbstractParticle)::Float64
 
-function norm(x::RealVector)::Float64
-	return sqrt(x[1]*x[1] + x[2]*x[2] + x[3]*x[3])
-end
-
+Computes the distance between any two particles.
+"""
 function dist(p::AbstractParticle, q::AbstractParticle)::Float64
 	return norm(p.x - q.x)
 end

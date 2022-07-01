@@ -16,18 +16,24 @@ Define a grid with a given characterstic length ``\\text{d}r`` and symmetry type
 2D:
 1) `:square` (square grid)
 2) `:hexagonal` (hexagrid, dual of isometric grid)
-3) `:vogel` (grid based on Vogel's spiral)
+3) `:vogel` (grid based on Vogel's spiral, see: https://en.wikipedia.org/wiki/Fermat%27s_spiral)
 
 3D:
-1) `:cubic` (cubic grid)
+1) `:cubic` (cubic grid, see: https://en.wikipedia.org/wiki/Cubic_crystal_system)
+2) `:facecentered` (cubic face-centered grid)
+3) `:bodycentered` (cubic body-centered grid)
+4) `:diamond` (diamond cubic grid, see: https://en.wikipedia.org/wiki/Diamond_cubic)
 """
 function Grid(dr::Float64, symm::Symbol)::Grid
     return @match symm begin
-		:square 	=> Squaregrid(dr)
-		:hexagonal  => Hexagrid(dr)
+	    :square 	=> Squaregrid(dr)
+	    :hexagonal  => Hexagrid(dr)
         :vogel      => VogelGrid(dr)
         :cubic      => CubicGrid(dr)
-		_ 			=> @error("Unsupported grid type: "*string(symm))
+        :facecentered      => FacecenteredGrid(dr)
+        :bodycentered      => BodycenteredGrid(dr)
+	    :diamond           => DiamondGrid(dr)
+	    _ => @error("Unsupported grid type: "*string(symm))
     end
 end
 
@@ -136,6 +142,102 @@ function covering(grid::CubicGrid, s::Shape)::Vector{RealVector}
 	end
     return xs
 end
+
+mutable struct BodycenteredGrid <: Grid3
+    dr::Float64
+end
+
+function covering(grid::BodycenteredGrid, s::Shape)::Vector{RealVector}
+    xs = RealVector[]
+    box = boundarybox(s)
+    a = 2^(1/3)*grid.dr
+    i_min = Int64(floor(box.x1_min/a))
+    j_min = Int64(floor(box.x2_min/a))
+    k_min = Int64(floor(box.x3_min/a))
+    i_max = Int64(ceil(box.x1_max/a))
+    j_max = Int64(ceil(box.x2_max/a))
+    k_max = Int64(ceil(box.x3_max/a))
+	for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+        x = RealVector(i*a, j*a, k*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+	end
+    for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+        x = RealVector((i+0.5)*a, (j+0.5)*a, (k+0.5)*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+	end
+    return xs
+end
+
+mutable struct FacecenteredGrid <: Grid3
+    dr::Float64
+end
+
+function covering(grid::FacecenteredGrid, s::Shape)::Vector{RealVector}
+    xs = RealVector[]
+    box = boundarybox(s)
+    a = 4^(1/3)*grid.dr
+    i_min = Int64(floor(box.x1_min/a))
+    j_min = Int64(floor(box.x2_min/a))
+    k_min = Int64(floor(box.x3_min/a))
+    i_max = Int64(ceil(box.x1_max/a))
+    j_max = Int64(ceil(box.x2_max/a))
+    k_max = Int64(ceil(box.x3_max/a))
+	for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+        x = RealVector(i*a, j*a, k*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+	end
+    for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+        x = RealVector((i+0.5)*a, (j+0.5)*a, k*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+        x = RealVector((i+0.5)*a, j*a, (k+0.5)*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+        x = RealVector(i*a, (j+0.5)*a, (k+0.5)*a)
+        if is_inside(x, s)
+            push!(xs, x)
+        end
+	end
+    return xs
+end
+
+mutable struct DiamondGrid <: Grid3
+    dr::Float64
+end
+
+function covering(grid::DiamondGrid, s::Shape)::Vector{RealVector}
+    xs = RealVector[]
+    box = boundarybox(s)
+    a = 0.5*grid.dr
+    i_min = Int64(floor(box.x1_min/a))
+    j_min = Int64(floor(box.x2_min/a))
+    k_min = Int64(floor(box.x3_min/a))
+    i_max = Int64(ceil(box.x1_max/a))
+    j_max = Int64(ceil(box.x2_max/a))
+    k_max = Int64(ceil(box.x3_max/a))
+    for i in i_min:i_max, j in j_min:j_max, k in k_min:k_max
+	if isodd(i) == isodd(j) == isodd(k)
+	    sum = (i + j + k)%4
+	    sum = (sum + 4)%4   #we want positive number after moduling (like every normal person)
+	    if sum == 0 || sum == 1
+                x = RealVector(i*a, j*a, k*a)
+                if is_inside(x, s)
+                    push!(xs, x)
+                end
+	    end
+	end
+    end
+    return xs
+end
+
 
 
 """

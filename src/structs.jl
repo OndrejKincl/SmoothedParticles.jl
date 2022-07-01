@@ -1,74 +1,6 @@
 using  StaticArrays
 
 """
-	RealVector(x1::Float64, x2::Float64, x3::Float64)
-
-Static Float64 vector with 3 elements.
-"""
-const RealVector = SArray{Tuple{3},Float64,1,3}
-const RealMatrix = SArray{Tuple{3,3},Float64,2,9}
-
-"""
-	VECX
-
-Static cartesian basis vector in the X direction. Equivalent to `RealVector(1.,0.,0.)`
-"""
-const VECX = RealVector(1., 0., 0.)
-
-"""
-	VECY
-
-Static cartesian basis vector in the Y direction. Equivalent to `RealVector(0.,1.,0.)`.
-"""
-const VECY = RealVector(0., 1., 0.)
-
-"""
-	VECZ
-
-Static cartesian basis vector in the Z direction. Equivalent to `RealVector(0.,0.,1.)`.
-"""
-const VECZ = RealVector(0., 0., 1.)
-
-"""
-	VEC0
-
-Static zero vector. Equivalent to `zero(RealVector)`.
-"""
-const VEC0 = zero(RealVector)
-
-"""
-	MAT0
-
-Static 3x3 zero matrix.
-"""
-const MAT0 = zero(RealMatrix)
-
-"""
-	MAT1
-
-Static 3x3 identity matrix.
-"""
-const MAT1 = RealMatrix(1., 0., 0., 
-                        0., 1., 0.,
-						0., 0., 1.)
-
-#backward compatibility
-function Vec2(x1::Float64, x2::Float64)::RealVector
-	return RealVector(x1, x2, 0.)
-end
-
-#backward compatibility
-function Mat2(x11::Float64, x12::Float64, x21::Float64, x22::Float64)
-	return RealMatrix(x11,x12, 0.,
-	                  x21,x22, 0.,
-					   0., 0., 1.)
-end
-
-#backward compatibility
-const Vec3 = RealVector
-const Mat3 = RealMatrix
-
-"""
 	AbstractParticle
 
 Abstract supertype for smoothed particles. Any structure with `AbstractParticle`
@@ -136,13 +68,13 @@ struct ParticleSystem{T <: AbstractParticle}
 			key_max = prod(key_lim)
 			key_diff = Int64[]
 			if key_lim[3] == 1
-				@info("2D sim")
+				#@info("2D sim")
 				#simulation in 2d
 				for di in -1:1, dj in -1:1
 					push!(key_diff, di + key_lim[1]*dj)
 				end
 			else
-				@info("3D sim")
+				#@info("3D sim")
 				#simulation in 3d
 				for di in -1:1, dj in -1:1, dk in -1:1
 					push!(key_diff, di + key_lim[1]*(dj + key_lim[2]*dk))

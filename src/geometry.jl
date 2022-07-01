@@ -52,7 +52,7 @@ struct Circle <: Shape
     r::Float64
     Circle(x1::Float64, x2::Float64, r::Float64) = begin
         if r <= 0.0
-            @warn("Degenerate circle definition (r <= 0)!")
+            @error("Degenerate circle definition (r <= 0)!")
         end
         return new(x1,x2,r)
     end
@@ -79,10 +79,10 @@ struct Ellipse <: Shape
     r2::Float64
     Ellipse(x1::Float64, x2::Float64, r1::Float64, r2::Float64) = begin
         if r1 <= 0.
-            @warn("Degenerate ellipse definition (r1 <= 0)!")
+            @error("Degenerate ellipse definition (r1 <= 0)!")
         end
         if r2 <= 0.
-            @warn("Degenerate ellipse definition (r2 <= 0)!")
+            @error("Degenerate ellipse definition (r2 <= 0)!")
         end
         return new(x1, x2, r1, r2)
     end
@@ -200,9 +200,6 @@ struct BoundaryLayer <: Shape
     dxs::Vector{RealVector}
     width::Float64
     BoundaryLayer(s::Shape, grid::Grid, width::Float64) = begin
-        if width <= 0.
-            @warn("Degenerate boundary layer definition (width <= 0)!")
-        end
         dxs = covering(grid, Ball(0.,0.,0.,width))
         return new(s, dimension(grid), dxs, width)
     end
@@ -252,9 +249,6 @@ struct Ball <: Shape
     x3::Float64
     r::Float64
     Ball(x1::Float64, x2::Float64, x3::Float64, r::Float64) = begin
-        if r <= 0.0
-            @warn("Degenerate ball definition (r <= 0)!")
-        end
         return new(x1,x2,x3,r)
     end
 end
@@ -291,7 +285,7 @@ function boundarybox(tr::Transform)::Box
     x3 = (box.x3_min, box.x3_max)
     x_min = [+Inf, +Inf, +Inf]
     x_max = [-Inf, -Inf, -Inf]
-    for i1 in 0:1, i2 in 0:1, i3 in 0:1
+    for i1 in 1:2, i2 in 1:2, i3 in 1:2
         x = tr.A*RealVector(x1[i1], x2[i2], x3[i3]) + tr.b
         x_min .= min.(x_min, x)
         x_max .= max.(x_max, x)

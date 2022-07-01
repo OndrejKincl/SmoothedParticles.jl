@@ -1,5 +1,5 @@
 using WriteVTK
-#using VTKDataIO
+using ReadVTK
 
 """
     DataStorage
@@ -58,16 +58,12 @@ function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
         N = length(sys.particles)
         if Type <: Number
             frame[string(var)] = field
-        elseif Type <: RealVector
-            vals = zeros(Float64, 3, N)
-            for k in 1:N, i in 1:3
-                vals[i,k] = field[k][i]
-            end
-            frame[string(var)] = vals
-        elseif Type <: RealMatrix
-            vals = zeros(Float64, 3, 3, N)
-            for k in 1:N, i in 1:3, j in 1:3
-                vals[i,j,k] = field[k][i,j]
+        elseif Type <: AbstractArray
+            vals = zeros(size(Type)..., N)
+            for k in 1:N
+                for i in CartesianIndices(field[k])
+                    vals[i,k] = field[k][i]
+                end
             end
             frame[string(var)] = vals
         else   
@@ -78,39 +74,49 @@ function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
     data.frame += 1
 end
 
-#=
+
 """
     import_particles!(sys::ParticleSystem, path::String, particle_constructor::Function)
 
-Imports particles from a vtk file in 'path' using 'constructor'.
+Imports particles from a vtk file in 'path' using 'constructor' and add them to `sys`.
 """
 function import_particles!(sys::ParticleSystem, path::String, particle_constructor::Function)
-    input = read_vtk(path)
-    (_, N) = size(input.point_coords)
-    resize!(sys.particles, N)
+    vtk = VTKFile(path)
+    data = get_point_data(vtk)
+    points = get_points(vtk)
+    N0 = length(sys.particles)
+    N = vtk.n_points
+    resize!(sys.particles, N0 + N)
+    PType = get_particle_type(sys)
     for i in 1:N
-        x = [input.point_coords[1,i] for i in 1:3] 
-        sys.particles[i] = particle_constructor(RealVector(x))
-        for field in fieldnames(sys.particle_type)
-            key = string(field)
-            #skip particle data not present in file
-            if !haskey(input.point_data, key)
-                continue
+        x = [points[j,i] for j in 1:3] 
+        sys.particles[N0 + i] = particle_constructor(RealVector(x))
+    end
+    for fieldname in fieldnames(PType)
+        fieldvals = []
+        try
+            fieldvals = get_data(data[string(fieldname)])
+        catch
+            continue
+        end
+        Type = SmoothedParticles.attribute_type(PType, fieldname)
+        if Type <: Number
+            for i in 1:N
+                val = fieldvals[i]
+                setproperty!(sys.particles[N0 + i], fieldname, val)
             end
-            Type = attribute_type(get_particle_type(sys), field)
-            if Type <: Number
-                val = input.point_data[key][i]
-                setproperty!(sys.particles[i], field, val)
-            elseif Type <: RealVector
-                val = Type([input.point_data[key][j,i] for j in 1:3])
-                setproperty!(sys.particles[i], field, val)
-            elseif Type <: RealMatrix
-                val = Type([input.point_data[key][j,k] for j in 1:3, k in 1:3])
-                setproperty!(sys.particles[i], field, val)
-            else
-                throw("Cannot import data field with type:" *string(Type))
+        elseif Type <: RealVector
+            for i in 1:N
+                val = Type([fieldvals[j,i] for j in 1:3])
+                setproperty!(sys.particles[N0 + i], fieldname, val)
             end
+        elseif Type <: RealMatrix
+            for i in 1:N
+                val = Type([fieldvals[j,i] for j in 1:9])
+                setproperty!(sys.particles[N0 + i], fieldname, val)
+            end
+        else
+            error("Cannot import data field with type:" *string(Type))
         end
     end
 end
-=#
