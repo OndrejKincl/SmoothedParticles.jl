@@ -1,0 +1,26 @@
+name: RunTests
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: '1.6'
+      - name: Make Documentation
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
+            DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+        run: julia --project=docs/ -e '
+          using Pkg; 
+          Pkg.develop(PackageSpec(path=pwd())); 
+          Pkg.instantiate();
+          Pkg.activate(".");
+          Pkg.build();
+          Pkg.add("Images");
+          Pkg.add("Statistics");
+          Pkg.add("Parameters");
+          include("tests/runtests.jl");'
