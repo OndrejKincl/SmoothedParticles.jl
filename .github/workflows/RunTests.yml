@@ -10,7 +10,7 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6'
-      - name: Make Documentation
+      - name: Testing
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
             DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
