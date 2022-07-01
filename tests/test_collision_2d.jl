@@ -5,7 +5,6 @@ module test_collision_2d
 include("../src/SmoothedParticles.jl")
 using .SmoothedParticles
 using Parameters
-using Plots
 using Test
 using Statistics
 
