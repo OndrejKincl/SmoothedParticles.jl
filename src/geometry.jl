@@ -292,3 +292,48 @@ function boundarybox(tr::Transform)::Box
     end
     return Box(x_min[1], x_min[2], x_min[3], x_max[1], x_max[2], x_max[3])
 end
+
+"""
+    Polygon(x...::RealVector)
+"""
+struct Polygon <: Shape
+    xs::Vector{Float64}
+    ys::Vector{Float64}
+    deg::Int64
+    Polygon(x::Tuple{Float64, Float64}...) = begin
+        deg = length(x)
+        xs = [x[k][1] for k in 1:deg]
+        ys = [x[k][2] for k in 1:deg]
+        return new(xs, ys, deg)
+    end
+end
+
+function boundarybox(p::Polygon)::Box
+    x_min = minimum(p.xs)
+    x_max = maximum(p.xs)
+    y_min = minimum(p.ys)
+    y_max = maximum(p.ys)
+    return Rectangle(x_min, y_min, x_max, y_max)
+end
+
+function is_inside(x::RealVector, p::Polygon)::Bool
+    wn = 0
+    x_ = x[1]
+    y_ = x[2]
+    for i in 1:p.deg
+        next = i%p.deg + 1
+        isleft = (
+              (p.xs[next] - p.xs[i])*(y_ - p.ys[i])
+            - (x_ - p.xs[i])*(p.ys[next] - p.ys[i])
+        )
+        if (p.ys[i] <= y_ < p.ys[next]) && (isleft > 0.)
+            wn += 1
+        end
+        if (p.ys[i] > y_ >= p.ys[next]) && (isleft < 0.)
+            wn -= 1
+        end
+    end
+    return wn != 0
+end
+
+

@@ -21,14 +21,15 @@ function make_figure()::Shape
     eyes = left_eye + right_eye
     mouth = Specification(
         Rectangle(-0.15, 0.6, 0.15, 1.0), 
-        x -> (abs(x[2] - 0.72 - 0.02*sin(20*x[1])) < 0.01) 
+        x -> (abs(x[2] - 0.72 - 0.02*sin(40*x[1])) < 0.01) 
     )
     head -= eyes + mouth
     body = Rectangle(-0.15, 0.1, 0.15, 0.6)
     left_hand = Transform(Rectangle(-0.15, 0.38, 0.1, 0.42); A=rotmat(pi/6))
     mirrormat = RealMatrix(-1.,0.,0.,  0.,1.,0.,  0.,0.,1.)
     right_hand = Transform(left_hand; A=mirrormat)
-    figure = body + head + left_hand + right_hand
+    hair = Polygon((-0.1,0.9), (+0.1,0.9), (0.1,0.98), (0.05, 0.94), (0.0, 0.98), (-0.05, 0.9))
+    figure = body + head + left_hand + right_hand + hair
     return figure
 end
 

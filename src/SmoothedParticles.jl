@@ -55,7 +55,8 @@ export generate_particles!,
        Specification, 
        BoundaryLayer,
        Transform,
-       is_inside
+       is_inside,
+       Polygon
 
 include("IO.jl")
 export save_frame!, 
