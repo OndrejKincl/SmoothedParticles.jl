@@ -4,6 +4,7 @@ import ReadVTK
 import SparseArrays
 import StaticArrays
 import Match
+import Interpolations
 
 include("algebra.jl")
 export RealVector, VECX, VECY, VECZ, VEC0,
@@ -56,7 +57,8 @@ export generate_particles!,
        BoundaryLayer,
        Transform,
        is_inside,
-       Polygon
+       Polygon,
+       ClosedSpline
 
 include("IO.jl")
 export save_frame!, 

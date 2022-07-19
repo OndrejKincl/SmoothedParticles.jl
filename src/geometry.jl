@@ -1,4 +1,5 @@
 using Match
+using Interpolations
 
 function is_inside(p::AbstractParticle, s::Shape)::Bool
     return is_inside(p.x, s)
@@ -294,7 +295,7 @@ function boundarybox(tr::Transform)::Box
 end
 
 """
-    Polygon(x...::RealVector)
+    Polygon(x::Tuple{Float64, Float64}...)
 """
 struct Polygon <: Shape
     xs::Vector{Float64}
@@ -336,4 +337,17 @@ function is_inside(x::RealVector, p::Polygon)::Bool
     return wn != 0
 end
 
-
+"""
+    ClosedSpline(x::Tuple{Float64, Float64}...; n::Int64 = 32)
+"""
+function ClosedSpline(x::Tuple{Float64, Float64}...; n::Int64 = 32)::Shape
+    xs = [x[k][1] for k in 1:length(x)]
+    ys = [x[k][2] for k in 1:length(x)]
+    push!(xs, xs[1])
+    push!(ys, ys[1])
+    ts = 0. : 1/length(x) : 1.0 
+    itp = Interpolations.scale(interpolate(hcat(xs,ys), (BSpline(Cubic(Natural(OnGrid()))), NoInterp())), ts, 1:2)
+    ts_fine = [i/(n-1) for i in 0:(n-1)]
+    y = Tuple((itp(t, 1), itp(t,2)) for t in ts_fine)
+    return Polygon(y...)
+end

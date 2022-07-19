@@ -29,7 +29,8 @@ function make_figure()::Shape
     mirrormat = RealMatrix(-1.,0.,0.,  0.,1.,0.,  0.,0.,1.)
     right_hand = Transform(left_hand; A=mirrormat)
     hair = Polygon((-0.1,0.9), (+0.1,0.9), (0.1,0.98), (0.05, 0.94), (0.0, 0.98), (-0.05, 0.9))
-    figure = body + head + left_hand + right_hand + hair
+    heart = ClosedSpline((0.02, 0.39), (0.07, 0.47), (0.04, 0.49), (0.02, 0.47), (0.0, 0.49), (-0.03, 0.47))
+    figure = (body - heart) + head + left_hand + right_hand + hair
     return figure
 end
 
@@ -48,7 +49,7 @@ function main()
             end
         end
         # uncomment next line to create reference solution or to perform visual check
-        #save("figure.png", img)
+        # save("figure.png", img)
         #_img = RGB.(load(joinpath(@__DIR__, "figure.png")))
         #@test img == _img
     end
