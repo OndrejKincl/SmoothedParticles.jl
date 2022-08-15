@@ -58,7 +58,7 @@ const eps = 1e-6
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 100.0
+const t_end = 0.2
 const dt_frame = t_end/1000
 
 ##particle types
@@ -223,30 +223,42 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	Ss = Float64[] # Entropy values
 	Ekin = Float64[] # Kinetic energy values
 	E0 = energy(sys)[1]
+	Eg = Float64[] # Gravitational energy values
+	Ewall = Float64[] # Wall energy values
+	Eint = Float64[] # Internal energy values
+	Etot = Float64[] # Internal energy values
+
 	for k = 0 : step_final
         verlet_step!(sys)
         save_results!(out, sys, k, E0)
     	if k % round(step_final/100) == 0 # store a number of entropy values
 			distr = velocity_histogram(sys, N = 100)
 			S = entropy_2D_MB(distr)
-			push!(times, k*dt)
 			push!(Ss, S)
-			push!(Ekin, energy_kinetic(sys))
 			@show(S)
+
+			push!(times, k*dt)
+
+        	(E_tot, E_kin, E_int, E_gra, E_wal) = energy(sys)
+			push!(Ekin, E_kin)
+			push!(Eg, E_gra)
+			push!(Eint, E_int)
+			push!(Ewall, E_wal)
+            push!(Etot, E_tot)
         	println()
 		end
 	end
 
 	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
-	T = plot_velocity_distr(sys, m, "energy_distribution_middle.pdf")
+	T = plot_velocity_distr(sys, m, "results/energy_distribution_middle.pdf")
 
 	# Plotting the entropy in time
 	Sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
 	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
 	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
-	savefig(p, "entropy_middle.pdf")
+	savefig(p, "results/entropy_middle.pdf")
 	df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-	CSV.write("entropy_middle.csv", df)
+	CSV.write("results/entropy_middle.csv", df)
 
 	if revert
 		#revert velocities
@@ -257,24 +269,51 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 			p.v = -p.v
 		end
 		Ss_rev = Float64[]
+        Ekin_rev = Float64[] # Kinetic energy values
+        Eg_rev = Float64[] # Gravitational energy values
+        Ewall_rev = Float64[] # Wall energy values
+        Eint_rev = Float64[] # Internal energy values
+        Etot_rev = Float64[] # Internal energy values		for k = step_final:-1:0
+
 		for k = step_final:-1:0
 			verlet_step!(sys)
-			save_results!(out, sys, k, E0)
+        	save_results!(out, sys, k, E0)
 			if k % round(step_final/100) == 0 # store a number of entropy values
 				distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
 				S = entropy_2D_MB(distr)
 				push!(Ss_rev, S)
 				@show(S)
+
+        		(E_tot, E_kin, E_int, E_gra, E_wal) = energy(sys)
+				push!(Ekin_rev, E_kin)
+				push!(Eg_rev, E_gra)
+				push!(Eint_rev, E_int)
+				push!(Ewall_rev, E_wal)
+				push!(Etot_rev, E_tot)
+
 				println()
 			end
 		end
-		plot_velocity_distr(sys, m, "energy_distribution_final.pdf")
+		plot_velocity_distr(sys, m, "results/energy_distribution_final.pdf")
 
 		# Plotting the entropy in time
 		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
-		savefig(p, "entropy_final.pdf")
+		savefig(p, "results/entropy_final.pdf")
 		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-		CSV.write("entropy_final.csv", df)
+		CSV.write("results/entropy_final.csv", df)
+        # Plotting the energies in time
+        p = plot(times, [Ekin Ekin_rev], label = ["Ekin" "Ekin_rev"], legend=:bottomright)
+		savefig(p, "results/energy_kin.pdf")
+        p = plot(times, [Ewall Ewall_rev], label = ["Ewall" "Ewall_rev"], legend=:bottomright)
+		savefig(p, "results/energy_wall.pdf")
+        p = plot(times, [Eg Eg_rev ], label = ["Eg" "Eg_rev"], legend=:bottomright)
+		savefig(p, "results/energy_g.pdf")
+        p = plot(times, [Eint Eint_rev ], label = ["Eint" "Eint_r"], legend=:bottomright)
+		savefig(p, "results/energy_int.pdf")
+        p = plot(times, [Etot Etot_rev], label = ["Etot" "Etot_r"], legend=:bottomright)
+		savefig(p, "results/energy_tot.pdf")
+		df = DataFrame(time_steps = times, E_kinetic = Ekin, E_wall = Ewall, E_graviational = Eg, E_internal = Eint, E_total = Etot, E_kinetic_rev = Ekin_rev, E_wall_rev = Ewall_rev, E_graviational_rev = Eg_rev, E_internal_rev = Eint_rev, E_total_rev = Etot_rev)
+		CSV.write("results/energy.csv", df)	
 	end
 
 	save_pvd_file(out)
