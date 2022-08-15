@@ -20,8 +20,8 @@ function lhs(sys::ParticleSystem, rDker::Function)::SparseMatrixCSC{Float64}
     V = Float64[]
     for i in 1:N
         p = sys.particles[i]
-        S1 = SPHLib.sum(sys, (p,q,r) -> -2*rDker(sys.h,r)*(p.x[1]-q.x[1]), p)
-        S2 = SPHLib.sum(sys, (p,q,r) -> -2*rDker(sys.h,r)*(p.x[2]-q.x[2]), p)
+        S1 = SmoothedParticles.sum(sys, (p,q,r) -> -2*rDker(sys.h,r)*(p.x[1]-q.x[1]), p)
+        S2 = SmoothedParticles.sum(sys, (p,q,r) -> -2*rDker(sys.h,r)*(p.x[2]-q.x[2]), p)
         S = RealVector(S1, S2, 0.)
         for j in 1:N
             q = sys.particles[j]
@@ -51,7 +51,7 @@ function rhs(sys::ParticleSystem, ker::Function, rho0::Float64)
     b = zeros(3N)
     for i in 1:N
         p = sys.particles[i]
-        b[i+2N] = SPHLib.sum(sys, (p,q,r) -> ker(sys.h,r), p) - rho0
+        b[i+2N] = SmoothedParticles.sum(sys, (p,q,r) -> ker(sys.h,r), p) - rho0
 	end
     return b
 end

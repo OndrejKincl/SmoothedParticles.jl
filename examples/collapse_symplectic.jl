@@ -22,6 +22,7 @@ using DataFrames # to store the csv file
 using CSV# to store the csv file
 include("utils/FixPA.jl")
 include("utils/entropy.jl")
+include("utils/ICR.jl")
 using .FixPA
 using .entropy
 
@@ -53,11 +54,11 @@ const wall_width = 2.5*dr
 const c = 50.0             #numerical speed of sound
 const dr_wall = 0.95*dr
 const E_wall = 10*norm(g)*water_column_height
-const eps = 1e-16
+const eps = 1e-6
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 1.0
+const t_end = 100.0
 const dt_frame = t_end/1000
 
 ##particle types
@@ -87,6 +88,10 @@ function make_system()
 	domain = Rectangle(-box_width, -box_width, 2*box_width, 3*box_height)
 	sys = ParticleSystem(Particle, domain, h)
 	generate_particles!(sys, grid, fluid, x -> Particle(x = x, type = FLUID))
+	ICR.renormalize!(sys, dr)
+	for p in sys.particles
+		p.x += 0.5*dr*(VECX + VECY)
+	end
 	generate_particles!(sys, grid, walls, x -> Particle(x = x, type = WALL))
 	return sys
 end
@@ -117,8 +122,8 @@ end
 		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
 		#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
 	elseif p.type == FLUID && q.type == WALL && r < dr_wall
-		s = dr_wall/(r + eps)
-		p.a += -E_wall/(r + eps)^2*(s^2 - s^4)*(p.x - q.x)
+		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
+		p.a += -E_wall/(r^2 + eps^2)*(s2 - s2^2)*(p.x - q.x)
 	end	
 end
 
@@ -144,8 +149,8 @@ end
 
 function LJ_potential(p::Particle, q::Particle, r::Float64)::Float64
 	if q.type == WALL && p.type == FLUID && r < dr_wall
-		s = dr_wall/(r + eps)
-		return m*E_wall*(0.5s^2 - 0.25s^4 -0.25)
+		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
+		return m*E_wall*(0.25*s2^2 - 0.5*s2 + 0.25)
 	else
 		return 0.0
 	end
@@ -155,24 +160,16 @@ function energy_kinetic(sys::ParticleSystem)::Float64
 	return sum(p -> 0.5*m*dot(p.v, p.v), sys.particles)
 end
 
-function energy_wall(sys::ParticleSystem)::Float64
-    return sum(p -> SmoothedParticles.sum(sys, LJ_potential, p), sys.particles)
+function energy(sys::ParticleSystem)
+	(E_kin, E_int, E_gra, E_wal, E_tot) = (0., 0., 0., 0., 0.)
+	for p in sys.particles
+		E_kin += 0.5*m*dot(p.v, p.v)
+		E_int +=  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
+		E_gra += -m*dot(g, p.x)
+		E_wal += SmoothedParticles.sum(sys, LJ_potential, p)
 end
-
-function energy_g(sys::ParticleSystem)::Float64
-    return sum(p -> -m*dot(g, p.x), sys.particles)
-end
-
-function energy_internal(sys::ParticleSystem)::Float64
-    return sum(p -> 0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2, sys.particles)
-end
-
-function energy(sys::ParticleSystem, p::Particle)::Float64
-	kinetic = 0.5*m*dot(p.v, p.v)
-	internal =  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
-	gravity_potential = -m*dot(g, p.x)
-	wall_potential = SmoothedParticles.sum(sys, LJ_potential, p)
-	return kinetic + internal + gravity_potential + wall_potential
+	E_tot = E_kin + E_int + E_gra + E_wal
+	return (E_tot, E_kin, E_int, E_gra, E_wal)
 end
 
 #=
@@ -191,12 +188,15 @@ function verlet_step!(sys::ParticleSystem)
     apply!(sys, accelerate!)
 end
 
-function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, k::Int64)
+function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, k::Int64, E0::Float64)
     if (k %  Int64(round(dt_frame/dt)) == 0)
         @printf("t = %.6e\n", k*dt)
         #energy
-        E = sum(p -> energy(sys,p), sys.particles)
-        @show E
+        (E_tot, E_kin, E_int, E_gra, E_wal) = energy(sys)
+		@show E_tot
+		@show E_wal	
+		E_err = E_tot - E0
+		@show E_err	
         println("# of part. = ", length(sys.particles))
         println()
         save_frame!(out, sys, :v, :a, :P, :rho, :rho0)
@@ -205,7 +205,7 @@ end
 
 function main(;revert = true) #if revert=true, velocities are inverted at the end of the simulation and the simulation then goes backward
 	sys = make_system()
-	out = new_pvd_file("results/collapse_symplectic")
+	out = new_pvd_file("results/collapse_fixpa")
     #initialization
     create_cell_list!(sys)
     apply!(sys, find_rho0!, self = true)
@@ -222,31 +222,16 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	times = Float64[] #time instants
 	Ss = Float64[] # Entropy values
 	Ekin = Float64[] # Kinetic energy values
-	Eg = Float64[] # Gravitational energy values
-	Ewall = Float64[] # Wall energy values
-	Eint = Float64[] # Internal energy values
-	Etot = Float64[] # Internal energy values
+	E0 = energy(sys)[1]
 	for k = 0 : step_final
         verlet_step!(sys)
-        save_results!(out, sys, k)
+        save_results!(out, sys, k, E0)
     	if k % round(step_final/100) == 0 # store a number of entropy values
 			distr = velocity_histogram(sys, N = 100)
 			S = entropy_2D_MB(distr)
 			push!(times, k*dt)
 			push!(Ss, S)
-            energy = energy_kinetic(sys)
-            Etotal = energy
-			push!(Ekin, energy)
-            energy = energy_g(sys)
-            Etotal += energy
-			push!(Eg, energy)
-            energy = energy_internal(sys)
-            Etotal += energy
-			push!(Eint, energy)
-            energy = energy_wall(sys)
-            Etotal += energy
-			push!(Ewall, energy)
-            push!(Etot, Etotal)
+			push!(Ekin, energy_kinetic(sys))
 			@show(S)
         	println()
 		end
@@ -272,34 +257,13 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 			p.v = -p.v
 		end
 		Ss_rev = Float64[]
-        Ekin_rev = Float64[] # Kinetic energy values
-        Eg_rev = Float64[] # Gravitational energy values
-        Ewall_rev = Float64[] # Wall energy values
-        Eint_rev = Float64[] # Internal energy values
-        Etot_rev = Float64[] # Internal energy values
-
 		for k = step_final:-1:0
 			verlet_step!(sys)
-			save_results!(out, sys, k)
+			save_results!(out, sys, k, E0)
 			if k % round(step_final/100) == 0 # store a number of entropy values
 				distr = velocity_histogram(sys, v_max = sqrt(2*norm(g)*water_column_height), N = 100)
 				S = entropy_2D_MB(distr)
 				push!(Ss_rev, S)
-
-                energy = energy_kinetic(sys)
-                Etotal = energy
-                push!(Ekin_rev, energy)
-                energy = energy_g(sys)
-                Etotal += energy
-                push!(Eg_rev, energy)
-                energy = energy_internal(sys)
-                Etotal += energy
-                push!(Eint_rev, energy)
-                energy = energy_wall(sys)
-                Etotal += energy
-                push!(Ewall_rev, energy)
-                push!(Etot_rev, Etotal)
-
 				@show(S)
 				println()
 			end
@@ -311,20 +275,6 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 		savefig(p, "entropy_final.pdf")
 		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
 		CSV.write("entropy_final.csv", df)
-
-        # Plotting the energies in time
-        p = plot(times, [Ekin Ekin_rev], label = ["Ekin" "Ekin_rev"], legend=:bottomright)
-		savefig(p, "energy_kin.pdf")
-        p = plot(times, [Ewall Ewall_rev], label = ["Ewall" "Ewall_rev"], legend=:bottomright)
-		savefig(p, "energy_wall.pdf")
-        p = plot(times, [Eg Eg_rev ], label = ["Eg" "Eg_rev"], legend=:bottomright)
-		savefig(p, "energy_g.pdf")
-        p = plot(times, [Eint Eint_rev ], label = ["Eint" "Eint_r"], legend=:bottomright)
-		savefig(p, "energy_int.pdf")
-        p = plot(times, [Etot Etot_rev], label = ["Etot" "Etot_r"], legend=:bottomright)
-		savefig(p, "energy_tot.pdf")
-		df = DataFrame(time_steps = times, E_kinetic = Ekin, E_wall = Ewall, E_graviational = Eg, E_internal = Eint, E_total = Etot, E_kinetic_rev = Ekin_rev, E_wall_rev = Ewall_rev, E_graviational_rev = Eg_rev, E_internal_rev = Eint_rev, E_total_rev = Etot_rev)
-		CSV.write("energy.csv", df)
 	end
 
 	save_pvd_file(out)
