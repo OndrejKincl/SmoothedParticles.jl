@@ -167,7 +167,7 @@ function energy(sys::ParticleSystem)
 		E_int +=  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
 		E_gra += -m*dot(g, p.x)
 		E_wal += SmoothedParticles.sum(sys, LJ_potential, p)
-end
+	end
 	E_tot = E_kin + E_int + E_gra + E_wal
 	return (E_tot, E_kin, E_int, E_gra, E_wal)
 end
@@ -205,7 +205,8 @@ end
 
 function main(;revert = true) #if revert=true, velocities are inverted at the end of the simulation and the simulation then goes backward
 	sys = make_system()
-	out = new_pvd_file("results/collapse_fixpa")
+	path = "results/collapse_fixpa"
+	out = new_pvd_file(path)
     #initialization
     create_cell_list!(sys)
     apply!(sys, find_rho0!, self = true)
@@ -250,15 +251,15 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	end
 
 	# Plotting the velocity distribution in comparison with Maxwell-Boltzmann
-	T = plot_velocity_distr(sys, m, "results/energy_distribution_middle.pdf")
+	T = plot_velocity_distr(sys, m, path*"/energy_distribution_middle.pdf")
 
 	# Plotting the entropy in time
 	Sred_eq_E = [(1+log(Ekin[k]/(m*length(sys.particles)))) for k in 1:length(Ss)]
 	Sred_eq_T= (1+log(kB*T/m))*ones(Float64, length(Ss))
 	p = plot(times, [Ss Sred_eq_T Sred_eq_E], label = ["entropy" "S_eq(T)" "S_eq(E)"],legend=:bottomright)
-	savefig(p, "results/entropy_middle.pdf")
+	savefig(p, path*"/entropy_middle.pdf")
 	df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-	CSV.write("results/entropy_middle.csv", df)
+	CSV.write(path*"/entropy_middle.csv", df)
 
 	if revert
 		#revert velocities
@@ -294,26 +295,26 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 				println()
 			end
 		end
-		plot_velocity_distr(sys, m, "results/energy_distribution_final.pdf")
+		plot_velocity_distr(sys, m, path*+"/energy_distribution_final.pdf")
 
 		# Plotting the entropy in time
 		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
-		savefig(p, "results/entropy_final.pdf")
+		savefig(p, path*"/entropy_final.pdf")
 		df = DataFrame(time_steps = times, S_Boltzmann = Ss, S_eq_T = Sred_eq_T, S_eq_E = Sred_eq_E)
-		CSV.write("results/entropy_final.csv", df)
+		CSV.write(path*"/entropy_final.csv", df)
         # Plotting the energies in time
         p = plot(times, [Ekin Ekin_rev], label = ["Ekin" "Ekin_rev"], legend=:bottomright)
-		savefig(p, "results/energy_kin.pdf")
+		savefig(p, path*"/energy_kin.pdf")
         p = plot(times, [Ewall Ewall_rev], label = ["Ewall" "Ewall_rev"], legend=:bottomright)
-		savefig(p, "results/energy_wall.pdf")
+		savefig(p, path*"/energy_wall.pdf")
         p = plot(times, [Eg Eg_rev ], label = ["Eg" "Eg_rev"], legend=:bottomright)
-		savefig(p, "results/energy_g.pdf")
+		savefig(p, path*"/energy_g.pdf")
         p = plot(times, [Eint Eint_rev ], label = ["Eint" "Eint_r"], legend=:bottomright)
-		savefig(p, "results/energy_int.pdf")
+		savefig(p, path*"/energy_int.pdf")
         p = plot(times, [Etot Etot_rev], label = ["Etot" "Etot_r"], legend=:bottomright)
-		savefig(p, "results/energy_tot.pdf")
+		savefig(p, path*"/energy_tot.pdf")
 		df = DataFrame(time_steps = times, E_kinetic = Ekin, E_wall = Ewall, E_graviational = Eg, E_internal = Eint, E_total = Etot, E_kinetic_rev = Ekin_rev, E_wall_rev = Ewall_rev, E_graviational_rev = Eg_rev, E_internal_rev = Eint_rev, E_total_rev = Etot_rev)
-		CSV.write("results/energy.csv", df)	
+		CSV.write(path*"/energy.csv", df)	
 	end
 
 	save_pvd_file(out)
