@@ -58,8 +58,8 @@ const eps = 1e-6
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.2
-const dt_frame = t_end/1000
+const t_end = 1.0
+const dt_frame = t_end/100
 
 ##particle types
 const FLUID = 0.
@@ -295,7 +295,7 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 				println()
 			end
 		end
-		plot_velocity_distr(sys, m, path*+"/energy_distribution_final.pdf")
+		plot_velocity_distr(sys, m, path*"/energy_distribution_final.pdf")
 
 		# Plotting the entropy in time
 		p = plot(times, [Ss Ss_rev Sred_eq_T Sred_eq_E], label = ["entropy forward" "entropy backward" "S_eq(T)" "S_eq(E)"], legend=:bottomright)
