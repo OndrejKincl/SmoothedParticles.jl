@@ -30,7 +30,7 @@ const rhoL = 1.0		#left fluid density
 const rhoR = 0.125		#right fluid density
 const pL = 1.0		#left pressure
 const pR = 0.1		#right pressure
-const gamma = 5/3
+const gamma = 1.4
 csL = sqrt(gamma * pL / rhoL) #speed of sound left
 csR = sqrt(gamma * pR / rhoR) #speed of sound right
 @show csL
@@ -55,10 +55,10 @@ const wall_w = 2.5*dr        #width of the wall
 const LRboundary = chan_l/10 #boundary position between L and R
 
 #temporal parameters
-const dt = 0.2*h/c      #time step
+const dt = 0.1*h/c      #time step
 @show dt
 const t_end = 1      #end of simulation
-const dt_frame = t_end/10    #how often data is saved
+const dt_frame = dt    #how often data is saved
 @show dt_frame
 
 #particle types
@@ -114,7 +114,8 @@ end
 function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
-	p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+	#p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+    p.P = p.rho^gamma
 end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
