@@ -53,6 +53,10 @@ const drR = dr * sqrt(rho0 / rhoR)		     #average particle distance (decrease to
 const h = 2.5*max(drL, drR)		     #size of kernel support
 const wall_w = 2.5*dr        #width of the wall
 const LRboundary = chan_l/10 #boundary position between L and R
+const dr_wall = 0.95*dr
+const E_wall = 1.0
+const eps = 1e-6
+
 
 #temporal parameters
 const dt = 0.1*h/c      #time step
@@ -68,6 +72,15 @@ const WALL = 1.
 #=
 Declare variables to be stored in a Particle
 =#
+
+#function LJ_potential(p::Particle, q::Particle, r::Float64)::Float64
+#	if q.type == WALL && p.type == FLUID && r < dr_wall
+#		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
+#		return m*E_wall*(0.25*s2^2 - 0.5*s2 + 0.25)
+#	else
+#		return 0.0
+#	end
+#end
 
 mutable struct Particle <: AbstractParticle
     x::RealVector #position
@@ -115,15 +128,18 @@ function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
 	#p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
-    p.P = p.rho^gamma
+    p.P = c^2 * p.rho/gamma
 end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
-	#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
-    ker = m*rDwendland2(h/2,r)
-    #p.a += -2*ker*P0/rho0^2*(p.x - q.x)
+	if p.type == FLUID && q.type == FLUID
+		ker = m*rDwendland2(h,r)
+		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+		#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
+	elseif p.type == FLUID && q.type == WALL && r < dr_wall
+		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
+		p.a += -E_wall/(r^2 + eps^2)*(s2 - s2^2)*(p.x - q.x)
+	end	
 end
 
 function move!(p::Particle)
