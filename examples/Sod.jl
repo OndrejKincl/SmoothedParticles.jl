@@ -45,7 +45,7 @@ const c = max(csL, csR)	#numerical speed of sound
 #geometry parameters
 const chan_l = 1.0           #length of the channel
 const chan_w = chan_l/10     #width of the channel
-const dr = chan_w / 20 		     #average particle distance for the reference density
+const dr = chan_w / 100 		     #average particle distance for the reference density
 @show dr
 const m = rho0*dr^2		#particle mass
 const drL = dr * sqrt(rho0 / rhoL) 		     #average particle distance (decrease to make finer simulation)
@@ -63,9 +63,9 @@ const eps = 1e-6
 #temporal parameters
 const dt = 0.1*h/c      #time step
 @show dt
-const t_end = 0.01      #end of simulation
+const t_end = 0.2      #end of simulation
 const dt_frame = dt    #how often data is saved
-const dt_profile = dt    #how often data is saved
+const dt_profile = t_end/dt/5*dt    #how often data is saved
 @show dt_frame
 
 const bins = 100
@@ -110,7 +110,7 @@ function make_system()
     gridL = Grid(drL, :square)
     gridR = Grid(drR, :square)
 
-	#wall = Specification(wall, x -> x[2] <= llid)
+	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0))
 
 	generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
 	generate_particles!(sys, gridL, boxL, x -> Particle(x, FLUID))
@@ -212,14 +212,14 @@ function  main()
             @show t
             save_frame!(out, sys, :v, :P, :type)
         end
-        if (k %  Int64(round(dt_profile/dt)) == 0)
-			println("Calculating density profile.")
-			density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
-			density_profile = calculate_profile(density_field, 0.0, chan_l, 0.0, chan_w, bins)
-			export_profile(t, density_profile, csv_density)
-			plot(density_profile)
-			gui()
-		end
+        #if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
+		#	println("Calculating density profile.")
+		#	density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
+		#	density_profile = calculate_profile(density_field, 0.0, chan_l, 0.0, chan_w, bins)
+		#	export_profile(t, density_profile, csv_density)
+		#	plot(density_profile)
+		#	gui()
+		#end
 		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
