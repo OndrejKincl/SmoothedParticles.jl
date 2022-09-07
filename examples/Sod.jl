@@ -17,6 +17,8 @@ module Sod
 
 using Printf
 using SmoothedParticles
+using Cubature
+using Plots
 
 const folder_name = "results/Sod"
 
@@ -61,9 +63,12 @@ const eps = 1e-6
 #temporal parameters
 const dt = 0.1*h/c      #time step
 @show dt
-const t_end = 1      #end of simulation
+const t_end = 0.01      #end of simulation
 const dt_frame = dt    #how often data is saved
+const dt_profile = dt    #how often data is saved
 @show dt_frame
+
+const bins = 100
 
 #particle types
 const FLUID = 0.
@@ -155,9 +160,42 @@ function accelerate!(p::Particle)
 	end
 end
 
+function interpolate_field2D(sys::ParticleSystem, property:: Function, kernel::Function, h::Float64)::Function
+	result = function (x,y)
+		value = 0.0
+		for	p in sys.particles
+			value += kernel(h, sqrt((p.x[1]-x)^2 + (p.x[2]-y)^2)) * property(p)
+		end	
+		return value
+	end
+	return result
+end
+
+function calculate_profile(field:: Function, xmin:: Float64, xmax:: Float64, ymin:: Float64, ymax:: Float64, bins:: Int64)::Array{Float64,1}
+	profile = zeros(bins)	
+	dx = xmax/bins
+	for i in 1:bins
+		println("Integrating over ", ((i-1)*dx, ymin), ", ", (i*dx, ymax))
+		(val,err) = hcubature(x->field(x[1], x[2]), ((i-1)*dx, ymin), (i*dx, ymax);	reltol=1e-8, abstol=0, maxevals=0)	
+		profile[i] = val / (dx * (ymax-ymin))
+	end
+	return profile
+end
+
+function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::IO)::String
+	line = string(time, ", ")
+	for i in 1:(length(profile)-1)
+		line = string(line, profile[i], ", ")
+	end
+	line = string(line, string(profile[length(profile)]), "\n")
+	write(csv_file, line)
+	return line
+end
+
 function  main()
     sys = make_system()
 	out = new_pvd_file(folder_name)
+    csv_density = open(string(folder_name,"/density.csv"), "w")
 
     #a modified Verlet scheme
 	for k = 0 : Int64(round(t_end/dt))
@@ -174,9 +212,18 @@ function  main()
             @show t
             save_frame!(out, sys, :v, :P, :type)
         end
+        if (k %  Int64(round(dt_profile/dt)) == 0)
+			println("Calculating density profile.")
+			density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
+			density_profile = calculate_profile(density_field, 0.0, chan_l, 0.0, chan_w, bins)
+			export_profile(t, density_profile, csv_density)
+			plot(density_profile)
+			gui()
+		end
 		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
+	close(csv_density)
 end
 
 end
