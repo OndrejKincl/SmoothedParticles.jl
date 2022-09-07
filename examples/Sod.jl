@@ -65,10 +65,12 @@ const dt = 0.1*h/c      #time step
 @show dt
 const t_end = 0.2      #end of simulation
 const dt_frame = dt    #how often data is saved
-const dt_profile = t_end/dt/5*dt    #how often data is saved
+const steps = t_end/dt
+@show steps
+const dt_profile = steps/20*dt    #how often data is saved
 @show dt_frame
 
-const bins = 100
+const bins = 20
 
 #particle types
 const FLUID = 0.
@@ -175,8 +177,8 @@ function calculate_profile(field:: Function, xmin:: Float64, xmax:: Float64, ymi
 	profile = zeros(bins)	
 	dx = xmax/bins
 	for i in 1:bins
-		println("Integrating over ", ((i-1)*dx, ymin), ", ", (i*dx, ymax))
-		(val,err) = hcubature(x->field(x[1], x[2]), ((i-1)*dx, ymin), (i*dx, ymax);	reltol=1e-8, abstol=0, maxevals=0)	
+		#println("Integrating over ", ((i-1)*dx, ymin), ", ", (i*dx, ymax))
+		(val,err) = hcubature(field, ((i-1)*dx, ymin), (i*dx, ymax);	reltol=1e-8, abstol=0, maxevals=0)	
 		profile[i] = val / (dx * (ymax-ymin))
 	end
 	return profile
@@ -190,6 +192,11 @@ function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::I
 	line = string(line, string(profile[length(profile)]), "\n")
 	write(csv_file, line)
 	return line
+end
+
+function density_field(sys::ParticleSystem, x::RealVector)::Float64
+	normalization = SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r), x)
+	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.rho, x)/normalization
 end
 
 function  main()
@@ -212,14 +219,15 @@ function  main()
             @show t
             save_frame!(out, sys, :v, :P, :type)
         end
-        #if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
-		#	println("Calculating density profile.")
-		#	density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
-		#	density_profile = calculate_profile(density_field, 0.0, chan_l, 0.0, chan_w, bins)
-		#	export_profile(t, density_profile, csv_density)
-		#	plot(density_profile)
-		#	gui()
-		#end
+
+        if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
+			println("Calculating density profile.")
+					#	density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
+			density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
+			export_profile(t, density_profile, csv_density)
+			plot(density_profile)
+			gui()
+		end
 		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
