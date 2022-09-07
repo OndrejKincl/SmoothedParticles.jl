@@ -19,6 +19,8 @@ using Printf
 using SmoothedParticles
 using Cubature
 using Plots
+using CSV
+using DataFrames
 
 const folder_name = "results/Sod"
 
@@ -67,7 +69,8 @@ const t_end = 0.2      #end of simulation
 const dt_frame = dt    #how often data is saved
 const steps = t_end/dt
 @show steps
-const dt_profile = steps/20*dt    #how often data is saved
+const number_of_profile_frames = 5
+const dt_profile = steps/number_of_profile_frames*dt    #how often data is saved
 @show dt_frame
 
 const bins = 20
@@ -178,6 +181,9 @@ function calculate_profile(field:: Function, xmin:: Float64, xmax:: Float64, ymi
 	dx = xmax/bins
 	for i in 1:bins
 		#println("Integrating over ", ((i-1)*dx, ymin), ", ", (i*dx, ymax))
+		if i % Int64(round(bins/10)) == 0 
+			println(Int64(round(i/bins*100)), "%")
+		end
 		(val,err) = hcubature(field, ((i-1)*dx, ymin), (i*dx, ymax);	reltol=1e-8, abstol=0, maxevals=0)	
 		profile[i] = val / (dx * (ymax-ymin))
 	end
@@ -187,7 +193,11 @@ end
 function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::IO)::String
 	line = string(time, ", ")
 	for i in 1:(length(profile)-1)
-		line = string(line, profile[i], ", ")
+		value = profile[i]
+		if value == Nan
+			value = 0.0
+		end
+		line = string(line, value, ", ")
 	end
 	line = string(line, string(profile[length(profile)]), "\n")
 	write(csv_file, line)
@@ -196,7 +206,7 @@ end
 
 function density_field(sys::ParticleSystem, x::RealVector)::Float64
 	normalization = SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r), x)
-	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.rho, x)/normalization
+	SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.rho, x)/normalization
 end
 
 function  main()
@@ -222,7 +232,7 @@ function  main()
 
         if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
 			println("Calculating density profile.")
-					#	density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
+			#density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
 			density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
 			export_profile(t, density_profile, csv_density)
 			plot(density_profile)
@@ -232,6 +242,21 @@ function  main()
 	end
 	save_pvd_file(out)
 	close(csv_density)
+end
+
+function animate(csv_file_name, gif_file_name)
+	println("Reading from ", string(folder_name, "/", csv_file_name))
+	data = Matrix(CSV.read(string(folder_name, "/", csv_file_name), DataFrame; header=false))
+	line_length = length(data[1, :])
+	rows = length(data[:,1])
+	xs = [i*chan_l/line_length for i in 1:line_length]
+	#p1 = plot(xs, data[1,:], label = "density", xlabel = "x", ylabel = "rho")
+	#savefig(p1, string(folder_name, "/", "plot.pdf"))
+
+	anim = @animate for i in 1:rows
+    		plot(xs, data[i,:], label = "density", xlabel = "x", ylabel = "rho")
+	end
+	gif(anim, string(folder_name, "/", gif_file_name), fps = 15)
 end
 
 end
