@@ -227,8 +227,12 @@ end
 function  main(find_density_profile = false, find_pressure_profile = false)
     sys = make_system()
     out = new_pvd_file(folder_name)
-    csv_density = open(string(folder_name,"/density.csv"), "w")
-    csv_pressure = open(string(folder_name,"/pressure.csv"), "w")
+    if find_density_profile
+		csv_density = open(string(folder_name,"/density.csv"), "w")
+	end
+	if find_pressure_profile
+    	csv_pressure = open(string(folder_name,"/pressure.csv"), "w")
+	end
 
     #a modified Verlet scheme
     for k = 0 : Int64(round(t_end/dt))
@@ -266,7 +270,13 @@ function  main(find_density_profile = false, find_pressure_profile = false)
 	apply!(sys, accelerate!)
     end
     save_pvd_file(out)
-    close(csv_density)
+
+    if find_density_profile
+		close(csv_density)
+	end
+	if find_pressure_profile
+    	close(csv_pressure)
+	end
 end
 
 function animate(csv_file_name::String, gif_file_name::String, field_name::String, field_label::String)
