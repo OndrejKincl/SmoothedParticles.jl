@@ -194,7 +194,7 @@ function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::I
 	line = string(time, ", ")
 	for i in 1:(length(profile)-1)
 		value = profile[i]
-		if value == Nan
+		if value == NaN
 			value = 0.0
 		end
 		line = string(line, value, ", ")
@@ -206,21 +206,29 @@ end
 
 function density_field(sys::ParticleSystem, x::RealVector)::Float64
 	normalization = SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r), x)
-	SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.rho, x)/normalization
+	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.rho, x)/normalization
 end
 
-function  main()
+function pressure_field(sys::ParticleSystem, x::RealVector)::Float64
+	normalization = SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r), x)
+	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.P, x)/normalization
+end
+
+
+
+function  main(find_density_profile = false, find_pressure_profile = false)
     sys = make_system()
-	out = new_pvd_file(folder_name)
+    out = new_pvd_file(folder_name)
     csv_density = open(string(folder_name,"/density.csv"), "w")
+    csv_pressure = open(string(folder_name,"/density.csv"), "w")
 
     #a modified Verlet scheme
-	for k = 0 : Int64(round(t_end/dt))
+    for k = 0 : Int64(round(t_end/dt))
         t = k*dt
         apply!(sys, move!)
 
         create_cell_list!(sys)
-		apply!(sys, balance_of_mass!)
+	apply!(sys, balance_of_mass!)
         apply!(sys, find_pressure!)
         apply!(sys, internal_force!)
         apply!(sys, accelerate!)
@@ -231,6 +239,7 @@ function  main()
         end
 
         if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
+		if find_density_profile
 			println("Calculating density profile.")
 			#density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
 			density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
@@ -238,13 +247,21 @@ function  main()
 			plot(density_profile)
 			gui()
 		end
-		apply!(sys, accelerate!)
+		if find_pressure_profile
+			println("Calculating pressure profile.")
+			pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
+			export_profile(t, pressure_profile, csv_pressure)
+			plot(pressure_profile)
+			gui()
+		end
 	end
-	save_pvd_file(out)
-	close(csv_density)
+	apply!(sys, accelerate!)
+    end
+    save_pvd_file(out)
+    close(csv_density)
 end
 
-function animate(csv_file_name, gif_file_name)
+function animate(csv_file_name::String, gif_file_name::String, field_name::String, field_label::String)
 	println("Reading from ", string(folder_name, "/", csv_file_name))
 	data = Matrix(CSV.read(string(folder_name, "/", csv_file_name), DataFrame; header=false))
 	line_length = length(data[1, :])
@@ -254,9 +271,18 @@ function animate(csv_file_name, gif_file_name)
 	#savefig(p1, string(folder_name, "/", "plot.pdf"))
 
 	anim = @animate for i in 1:rows
-    		plot(xs, data[i,:], label = "density", xlabel = "x", ylabel = "rho")
+    		plot(xs, data[i,:], label = field_name, xlabel = "x", ylabel = field_label)
 	end
 	gif(anim, string(folder_name, "/", gif_file_name), fps = 15)
+	gui()
+end
+
+function animate_density()
+	animate("density.csv", "density.gif", "density", "rho")
+end
+
+function animate_pressure()
+	animate("pressure.csv", "pressure.gif", "pressure", "P")
 end
 
 end
