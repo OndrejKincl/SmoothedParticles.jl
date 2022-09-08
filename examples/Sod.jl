@@ -54,6 +54,8 @@ const drL = dr * sqrt(rho0 / rhoL) 		     #average particle distance (decrease t
 const drR = dr * sqrt(rho0 / rhoR)		     #average particle distance (decrease to make finer simulation)
 @show drL
 @show drR
+const dxR = drR^2/drL # drR^2 = dxR * drL 
+@show dxR
 const h = 2.5*max(drL, drR)		     #size of kernel support
 const wall_w = 2.5*dr        #width of the wall
 const LRboundary = chan_l/10 #boundary position between L and R
@@ -106,22 +108,28 @@ mutable struct Particle <: AbstractParticle
 end
 
 function make_system()
-    grid = Grid(dr, :square)
+	grid = Grid(dr, :square)
 	box = Rectangle(0., 0., chan_l, chan_w)
 	boxL = Rectangle(0., 0., LRboundary, chan_w)
 	boxR = Rectangle(LRboundary, 0., chan_l, chan_w)
 	wall = BoundaryLayer(box, grid, wall_w)
 	sys = ParticleSystem(Particle, box + wall, h)
-    gridL = Grid(drL, :square)
-    gridR = Grid(drR, :square)
+	gridL = Grid(drL, :square)
+	gridR = Grid(drR, :square)
 
 	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0))
 
 	generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
 	generate_particles!(sys, gridL, boxL, x -> Particle(x, FLUID))
-	generate_particles!(sys, gridR, boxR, x -> Particle(x, FLUID))
+	#generate_particles!(sys, gridR, boxR, x -> Particle(x, FLUID))
 
-	#push!(sys.particles, Particle(x=particle_position, v=particle_velocity, type = FLUID))	
+	for i in 1:(Int64(round(chan_w/drL))-1)
+		y = i * drL
+		for j in 1:Int64(round((chan_l-LRboundary)/dxR))
+			x = LRboundary + j*dxR
+			push!(sys.particles, Particle(RealVector((x, y, 0.0)), FLUID))	
+		end
+	end
 
     return sys
 end
@@ -144,7 +152,7 @@ end
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
 	if p.type == FLUID && q.type == FLUID
 		ker = m*rDwendland2(h,r)
-		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+		p.a += -ker*(p.P/p.rho^2 + q.P/p.rho^2)*(p.x - q.x)
 		#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
 	elseif p.type == FLUID && q.type == WALL && r < dr_wall
 		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
@@ -220,7 +228,7 @@ function  main(find_density_profile = false, find_pressure_profile = false)
     sys = make_system()
     out = new_pvd_file(folder_name)
     csv_density = open(string(folder_name,"/density.csv"), "w")
-    csv_pressure = open(string(folder_name,"/density.csv"), "w")
+    csv_pressure = open(string(folder_name,"/pressure.csv"), "w")
 
     #a modified Verlet scheme
     for k = 0 : Int64(round(t_end/dt))
