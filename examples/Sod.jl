@@ -108,6 +108,9 @@ mutable struct Particle <: AbstractParticle
     Particle(x,type) = begin
         return new(x, VEC0, VEC0, rho0, rho0, 0., 0., type)
     end
+    Particle(x, rho, type) = begin
+        return new(x, VEC0, VEC0, rho, rho, 0., 0., type)
+    end
 end
 
 function make_system()
@@ -122,8 +125,8 @@ function make_system()
 
 	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0 || x[1] < 0.0))
 
-	generate_particles!(sys, gridL, boxL, x -> Particle(x, FLUID))
-	generate_particles!(sys, gridR, boxR, x -> Particle(x, FLUID))
+	generate_particles!(sys, gridL, boxL, x -> Particle(x, rhoL, FLUID))
+	generate_particles!(sys, gridR, boxR, x -> Particle(x, rhoR, FLUID))
 	#ICR.renormalize!(sys, dr)
 
 	#for i in 1:(Int64(round(chan_w/drL))-1)
@@ -142,11 +145,11 @@ end
 
 #Define interactions between particles
 
-#@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-#	ker = m*rDwendland2(h,r)
-#	#p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
-#	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
-#end
+@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
+	ker = m*rDwendland2(h,r)
+	#p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
+	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
+end
 
 function reset_rho!(p::Particle)
     p.rho = 0.0
@@ -265,9 +268,9 @@ function  main(find_density_profile = false, find_pressure_profile = false)
         apply!(sys, move!)
 
         create_cell_list!(sys)
-		#apply!(sys, balance_of_mass!)
-    	apply!(sys, reset_rho!)
-    	apply!(sys, find_rho!, self = true)
+	apply!(sys, balance_of_mass!)
+    	#apply!(sys, reset_rho!)
+    	#apply!(sys, find_rho!, self = true)
         apply!(sys, find_pressure!)
         apply!(sys, internal_force!)
         apply!(sys, accelerate!)
