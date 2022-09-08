@@ -21,6 +21,7 @@ using Cubature
 using Plots
 using CSV
 using DataFrames
+#include("utils/ICR.jl")
 
 const folder_name = "results/Sod"
 
@@ -34,20 +35,21 @@ const rhoL = 1.0		#left fluid density
 const rhoR = 0.125		#right fluid density
 const pL = 1.0		#left pressure
 const pR = 0.1		#right pressure
-const gamma = 1.4
-csL = sqrt(gamma * pL / rhoL) #speed of sound left
-csR = sqrt(gamma * pR / rhoR) #speed of sound right
-@show csL
-@show csR
-const c = max(csL, csR)	#numerical speed of sound
+const gamma = 1.0
+#csL = sqrt(gamma * pL / rhoL) #speed of sound left
+#csR = sqrt(gamma * pR / rhoR) #speed of sound right
+#@show csL
+#@show csR
+#const c = max(csL, csR)	#numerical speed of sound
+const c = 1.0
 #const mu = 1.0e-3		#dynamic viscosity of water
 #const nu = 1.0e-3		#pressure stabilization
 #const P0 = 1.2          #anti-clump term
 
 #geometry parameters
 const chan_l = 1.0           #length of the channel
-const chan_w = chan_l/10     #width of the channel
-const dr = chan_w / 100 		     #average particle distance for the reference density
+const chan_w = 0.01     #width of the channel
+const dr = chan_w / 40 		     #average particle distance for the reference density
 @show dr
 const m = rho0*dr^2		#particle mass
 const drL = dr * sqrt(rho0 / rhoL) 		     #average particle distance (decrease to make finer simulation)
@@ -58,24 +60,24 @@ const dxR = drR^2/drL # drR^2 = dxR * drL
 @show dxR
 const h = 2.5*max(drL, drR)		     #size of kernel support
 const wall_w = 2.5*dr        #width of the wall
-const LRboundary = chan_l/10 #boundary position between L and R
+const LRboundary = 0.3 #boundary position between L and R
 const dr_wall = 0.95*dr
 const E_wall = 1.0
 const eps = 1e-6
 
 
 #temporal parameters
-const dt = 0.1*h/c      #time step
+const dt = 0.2*h/c      #time step
 @show dt
-const t_end = 0.2      #end of simulation
+const t_end = 0.02      #end of simulation
 const dt_frame = dt    #how often data is saved
 const steps = t_end/dt
 @show steps
-const number_of_profile_frames = 5
+const number_of_profile_frames = 10
 const dt_profile = steps/number_of_profile_frames*dt    #how often data is saved
 @show dt_frame
 
-const bins = 20
+const bins = 10
 
 #particle types
 const FLUID = 0.
@@ -99,11 +101,12 @@ mutable struct Particle <: AbstractParticle
     v::RealVector #velocity
     a::RealVector #acceleration
     rho::Float64 #density
+    rho0::Float64 #initial density
     Drho::Float64 #rate of density
     P::Float64 #pressure
     type::Float64 #particle type
     Particle(x,type) = begin
-        return new(x, VEC0, VEC0, rho0, 0., 0., type)
+        return new(x, VEC0, VEC0, rho0, rho0, 0., 0., type)
     end
 end
 
@@ -117,35 +120,55 @@ function make_system()
 	gridL = Grid(drL, :square)
 	gridR = Grid(drR, :square)
 
-	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0))
+	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0 || x[1] < 0.0))
+
+	generate_particles!(sys, gridL, boxL, x -> Particle(x, FLUID))
+	generate_particles!(sys, gridR, boxR, x -> Particle(x, FLUID))
+	#ICR.renormalize!(sys, dr)
+
+	#for i in 1:(Int64(round(chan_w/drL))-1)
+	#	y = i * drL
+	#	for j in 1:Int64(round((chan_l-LRboundary)/dxR))
+	#		x = LRboundary + j*dxR
+	#		push!(sys.particles, Particle(RealVector((x, y, 0.0)), FLUID))	
+	#	end
+	#end
+	#ICR.renormalize!(sys, dr)
 
 	generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
-	generate_particles!(sys, gridL, boxL, x -> Particle(x, FLUID))
-	#generate_particles!(sys, gridR, boxR, x -> Particle(x, FLUID))
-
-	for i in 1:(Int64(round(chan_w/drL))-1)
-		y = i * drL
-		for j in 1:Int64(round((chan_l-LRboundary)/dxR))
-			x = LRboundary + j*dxR
-			push!(sys.particles, Particle(RealVector((x, y, 0.0)), FLUID))	
-		end
-	end
 
     return sys
 end
 
 #Define interactions between particles
 
-@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	#p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
-	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
+#@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
+#	ker = m*rDwendland2(h,r)
+#	#p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
+#	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
+#end
+
+function reset_rho!(p::Particle)
+    p.rho = 0.0
+end
+
+@inbounds function find_rho0!(p::Particle, q::Particle, r::Float64)
+    if p.type == FLUID && q.type == FLUID
+		p.rho0 += m*wendland2(h,r)
+	end
+end
+
+@inbounds function find_rho!(p::Particle, q::Particle, r::Float64)
+    if p.type == FLUID && q.type == FLUID
+		p.rho += m*wendland2(h,r)
+	end
 end
 
 function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
 	#p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+    #p.P = c^2 * (p.rho-p.rho0)/gamma
     p.P = c^2 * p.rho/gamma
 end
 
@@ -202,7 +225,7 @@ function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::I
 	line = string(time, ", ")
 	for i in 1:(length(profile)-1)
 		value = profile[i]
-		if value == NaN
+		if isnan(value)
 			value = 0.0
 		end
 		line = string(line, value, ", ")
@@ -234,20 +257,24 @@ function  main(find_density_profile = false, find_pressure_profile = false)
     	csv_pressure = open(string(folder_name,"/pressure.csv"), "w")
 	end
 
+    apply!(sys, find_rho0!, self = true)
+
     #a modified Verlet scheme
     for k = 0 : Int64(round(t_end/dt))
         t = k*dt
         apply!(sys, move!)
 
         create_cell_list!(sys)
-	apply!(sys, balance_of_mass!)
+		#apply!(sys, balance_of_mass!)
+    	apply!(sys, reset_rho!)
+    	apply!(sys, find_rho!, self = true)
         apply!(sys, find_pressure!)
         apply!(sys, internal_force!)
         apply!(sys, accelerate!)
         #save data at selected frames
         if (k %  Int64(round(dt_frame/dt)) == 0)
             @show t
-            save_frame!(out, sys, :v, :P, :type)
+            save_frame!(out, sys, :v, :P, :rho, :type)
         end
 
         if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
