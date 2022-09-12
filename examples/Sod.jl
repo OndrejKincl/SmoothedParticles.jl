@@ -42,7 +42,7 @@ const gamma = 1.0
 #@show csR
 #const c = max(csL, csR)	#numerical speed of sound
 const c = 1.0
-#const mu = 1.0e-3		#dynamic viscosity of water
+const mu = 1.0e-3		#dynamic viscosity of water
 #const nu = 1.0e-3		#pressure stabilization
 #const P0 = 1.2          #anti-clump term
 
@@ -60,7 +60,9 @@ const drR = dr * rho0 / rhoR		     #average particle distance (decrease to make 
 @show drR
 const dxR = drR^2/drL # drR^2 = dxR * drL 
 @show dxR
-const h = 2.5*max(drL, drR)		     #size of kernel support
+const hmax = 2.5*max(drL, drR)		     #size of kernel support
+const hmin = 2.5*min(drL, drR)		     #size of kernel support
+const h = hmax
 const wall_w = 2.5*dr        #width of the wall
 const LRboundary = 0.3 #boundary position between L and R
 const dr_wall = 0.95*dr
@@ -69,7 +71,7 @@ const eps = 1e-6
 
 
 #temporal parameters
-const dt = 0.2*h/c      #time step
+const dt = 0.2*hmin/c      #time step
 @show dt
 const t_end = 1.0      #end of simulation
 const dt_frame = dt    #how often data is saved
@@ -312,7 +314,7 @@ function  main(find_density_profile = false, find_pressure_profile = false, find
 
         if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
 			if find_density_profile
-				println("Calculating density profile.")
+				#println("Calculating density profile.")
 				#density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
 				#density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
 				#density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, h, bins)
@@ -327,7 +329,7 @@ function  main(find_density_profile = false, find_pressure_profile = false, find
 				#gui()
 			end
 			if find_pressure_profile
-				println("Calculating pressure profile.")
+				#println("Calculating pressure profile.")
 				#pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
 				#pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, h, bins)
 				#export_profile(t, pressure_profile, csv_pressure)
@@ -341,7 +343,7 @@ function  main(find_density_profile = false, find_pressure_profile = false, find
 				#gui()
 			end
 			if find_velocity_profile
-				println("Calculating velocity profile.")
+				#println("Calculating velocity profile.")
 				ys = zeros(length(xs))
 				for i in 1:length(ys)
 					ys[i] = velocity_field(sys, RealVector((xs[i],0.0,0.0))) 
