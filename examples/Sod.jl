@@ -49,11 +49,13 @@ const c = 1.0
 #geometry parameters
 const chan_l = 1.0           #length of the channel
 const chan_w = 0.01     #width of the channel
-const dr = chan_w / 40 		     #average particle distance for the reference density
+const dr = chan_l / 2000 		     #average particle distance for the reference density
 @show dr
 const m = rho0*dr^2		#particle mass
-const drL = dr * sqrt(rho0 / rhoL) 		     #average particle distance (decrease to make finer simulation)
-const drR = dr * sqrt(rho0 / rhoR)		     #average particle distance (decrease to make finer simulation)
+#const drL = dr * sqrt(rho0 / rhoL) 		     #average particle distance (decrease to make finer simulation)
+#const drR = dr * sqrt(rho0 / rhoR)		     #average particle distance (decrease to make finer simulation)
+const drL = dr * rho0 / rhoL 		     #average particle distance (decrease to make finer simulation)
+const drR = dr * rho0 / rhoR		     #average particle distance (decrease to make finer simulation)
 @show drL
 @show drR
 const dxR = drR^2/drL # drR^2 = dxR * drL 
@@ -69,12 +71,13 @@ const eps = 1e-6
 #temporal parameters
 const dt = 0.2*h/c      #time step
 @show dt
-const t_end = 0.02      #end of simulation
+const t_end = 1.0      #end of simulation
 const dt_frame = dt    #how often data is saved
 const steps = t_end/dt
 @show steps
-const number_of_profile_frames = 10
-const dt_profile = steps/number_of_profile_frames*dt    #how often data is saved
+#const number_of_profile_frames = 100
+#const dt_profile = steps/number_of_profile_frames*dt    #how often data is saved
+const dt_profile = dt_frame 
 @show dt_frame
 
 const bins = 10
@@ -114,19 +117,19 @@ mutable struct Particle <: AbstractParticle
 end
 
 function make_system()
-	grid = Grid(dr, :square)
-	box = Rectangle(0., 0., chan_l, chan_w)
-	boxL = Rectangle(0., 0., LRboundary, chan_w)
-	boxR = Rectangle(LRboundary, 0., chan_l, chan_w)
-	wall = BoundaryLayer(box, grid, wall_w)
-	sys = ParticleSystem(Particle, box + wall, h)
-	gridL = Grid(drL, :square)
-	gridR = Grid(drR, :square)
+	#grid = Grid(dr, :square)
+	#box = Rectangle(0., 0., chan_l, chan_w)
+	#boxL = Rectangle(0., 0., LRboundary, chan_w)
+	#boxR = Rectangle(LRboundary, 0., chan_l, chan_w)
+	#wall = BoundaryLayer(box, grid, wall_w)
+	#sys = ParticleSystem(Particle, box + wall, h)
+	#gridL = Grid(drL, :square)
+	#gridR = Grid(drR, :square)
 
-	wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0 || x[1] < 0.0))
+	#wall = Specification(wall, x -> (x[2] > chan_w || x[2] < 0.0 || x[1] < 0.0))
 
-	generate_particles!(sys, gridL, boxL, x -> Particle(x, rhoL, FLUID))
-	generate_particles!(sys, gridR, boxR, x -> Particle(x, rhoR, FLUID))
+	#generate_particles!(sys, gridL, boxL, x -> Particle(x, rhoL, FLUID))
+	#generate_particles!(sys, gridR, boxR, x -> Particle(x, rhoR, FLUID))
 	#ICR.renormalize!(sys, dr)
 
 	#for i in 1:(Int64(round(chan_w/drL))-1)
@@ -138,7 +141,18 @@ function make_system()
 	#end
 	#ICR.renormalize!(sys, dr)
 
-	generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
+	#generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
+
+	#1D version
+	line = Rectangle(0., 0., chan_l, h)
+	sys = ParticleSystem(Particle, line, h)
+	#push!(sys.particles, Particle(RealVector((0.0, 0.0, 0.0)), rho0, WALL))	
+	for i in 1:Int64(round(LRboundary/drL))
+		push!(sys.particles, Particle(RealVector(((i-1)*drL, 0.0, 0.0)), rhoL, FLUID))	
+	end
+	for i in Int64(round(LRboundary/drR)):Int64(round((chan_l-LRboundary)/drL))
+		push!(sys.particles, Particle(RealVector((i*drR, 0.0, 0.0)), rhoR, FLUID))	
+	end
 
     return sys
 end
@@ -170,7 +184,7 @@ end
 function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
-	#p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+	#p.P = rho0*c^2*((p.rho/rho0)^gamma - 1.0)/gamma #Tait equation
     #p.P = c^2 * (p.rho-p.rho0)/gamma
     p.P = c^2 * p.rho/gamma
 end
@@ -224,7 +238,23 @@ function calculate_profile(field:: Function, xmin:: Float64, xmax:: Float64, ymi
 	return profile
 end
 
-function export_profile(time:: Float64, profile:: Array{Float64, 1}, csv_file::IO)::String
+function calculate_profile_1D(field:: Function, xmin:: Float64, xmax:: Float64, bins:: Int64)::Array{Float64,1}
+	profile = zeros(bins)	
+	dx = xmax/bins
+	for i in 1:bins
+		#println("Integrating over ", ((i-1)*dx, ymin), ", ", (i*dx, ymax))
+		if i % Int64(round(bins/10)) == 0 
+			println(Int64(round(i/bins*100)), "%")
+		end
+		(val,err) = hquadrature(field, (i-1)*dx, i*dx;	reltol=1e-8, abstol=0, maxevals=0)	
+		profile[i] = val / dx 
+	end
+	return profile
+end
+
+
+
+function export_profile(time:: Float64, profile:: Array{Float64,1}, csv_file::IO)::String
 	line = string(time, ", ")
 	for i in 1:(length(profile)-1)
 		value = profile[i]
@@ -248,9 +278,13 @@ function pressure_field(sys::ParticleSystem, x::RealVector)::Float64
 	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.P, x)/normalization
 end
 
+function velocity_field(sys::ParticleSystem, x::RealVector)::Float64
+	normalization = SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r), x)
+	return SmoothedParticles.sum(sys, (p,r) -> wendland2(h,r)*p.v[1], x)/normalization
+end
 
 
-function  main(find_density_profile = false, find_pressure_profile = false)
+function  main(find_density_profile = false, find_pressure_profile = false, find_velocity_profile = false)
     sys = make_system()
     out = new_pvd_file(folder_name)
     if find_density_profile
@@ -259,21 +293,17 @@ function  main(find_density_profile = false, find_pressure_profile = false)
 	if find_pressure_profile
     	csv_pressure = open(string(folder_name,"/pressure.csv"), "w")
 	end
+	if find_velocity_profile
+    	csv_velocity= open(string(folder_name,"/velocity.csv"), "w")
+	end
 
     apply!(sys, find_rho0!, self = true)
+
+	xs = [i*drR for i in 1:Int64(round(chan_l/drR))]
 
     #a modified Verlet scheme
     for k = 0 : Int64(round(t_end/dt))
         t = k*dt
-        apply!(sys, move!)
-
-        create_cell_list!(sys)
-	apply!(sys, balance_of_mass!)
-    	#apply!(sys, reset_rho!)
-    	#apply!(sys, find_rho!, self = true)
-        apply!(sys, find_pressure!)
-        apply!(sys, internal_force!)
-        apply!(sys, accelerate!)
         #save data at selected frames
         if (k %  Int64(round(dt_frame/dt)) == 0)
             @show t
@@ -281,23 +311,56 @@ function  main(find_density_profile = false, find_pressure_profile = false)
         end
 
         if (k %  Int64(round(dt_profile/dt)) == 0) || (k==Int64(round(t_end/dt)))
-		if find_density_profile
-			println("Calculating density profile.")
-			#density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
-			density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
-			export_profile(t, density_profile, csv_density)
-			plot(density_profile)
-			gui()
+			if find_density_profile
+				println("Calculating density profile.")
+				#density_field = interpolate_field2D(sys, p -> p.rho, wendland2, h)
+				#density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
+				#density_profile = calculate_profile(x->density_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, h, bins)
+				#export_profile(t, density_profile, csv_density)
+				#plot(density_profile)
+				ys = zeros(length(xs))
+				for i in 1:length(ys)
+					ys[i] = density_field(sys, RealVector((xs[i],0.0,0.0))) 
+				end
+				export_profile(t, ys, csv_density)
+				#plot(xs, ys, labels = string("t=", k*dt))
+				#gui()
+			end
+			if find_pressure_profile
+				println("Calculating pressure profile.")
+				#pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
+				#pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, h, bins)
+				#export_profile(t, pressure_profile, csv_pressure)
+				#plot(pressure_profile)
+				ys = zeros(length(xs))
+				for i in 1:length(ys)
+					ys[i] = pressure_field(sys, RealVector((xs[i],0.0,0.0))) 
+				end
+				export_profile(t, ys, csv_pressure)
+				#plot(xs, ys, labels = string("t=", k*dt))
+				#gui()
+			end
+			if find_velocity_profile
+				println("Calculating velocity profile.")
+				ys = zeros(length(xs))
+				for i in 1:length(ys)
+					ys[i] = velocity_field(sys, RealVector((xs[i],0.0,0.0))) 
+				end
+				export_profile(t, ys, csv_velocity)
+				#plot(xs, ys, labels = string("t=", k*dt))
+				#gui()
+			end
+		apply!(sys, move!)
 		end
-		if find_pressure_profile
-			println("Calculating pressure profile.")
-			pressure_profile = calculate_profile(x->pressure_field(sys, RealVector((x[1],x[2],0.0))), 0.0, chan_l, 0.0, chan_w, bins)
-			export_profile(t, pressure_profile, csv_pressure)
-			plot(pressure_profile)
-			gui()
-		end
-	end
-	apply!(sys, accelerate!)
+
+        create_cell_list!(sys)
+        apply!(sys, accelerate!)
+		apply!(sys, balance_of_mass!)
+    	#apply!(sys, reset_rho!)
+    	#apply!(sys, find_rho!, self = true)
+        apply!(sys, find_pressure!)
+        apply!(sys, internal_force!)
+        apply!(sys, accelerate!)
     end
     save_pvd_file(out)
 
@@ -307,19 +370,22 @@ function  main(find_density_profile = false, find_pressure_profile = false)
 	if find_pressure_profile
     	close(csv_pressure)
 	end
+	if find_velocity_profile
+    	close(csv_velocity)
+	end
 end
 
 function animate(csv_file_name::String, gif_file_name::String, field_name::String, field_label::String)
 	println("Reading from ", string(folder_name, "/", csv_file_name))
 	data = Matrix(CSV.read(string(folder_name, "/", csv_file_name), DataFrame; header=false))
-	line_length = length(data[1, :])
+	line_length = length(data[1,:])
 	rows = length(data[:,1])
-	xs = [i*chan_l/line_length for i in 1:line_length]
+	xs = [i*chan_l/(line_length-1) for i in 2:line_length] #assuming equidistant
 	#p1 = plot(xs, data[1,:], label = "density", xlabel = "x", ylabel = "rho")
 	#savefig(p1, string(folder_name, "/", "plot.pdf"))
 
 	anim = @animate for i in 1:rows
-    		plot(xs, data[i,:], label = field_name, xlabel = "x", ylabel = field_label)
+    		plot(xs, data[i,2:line_length], label = string("t=",data[i,1]), xlabel = "x", ylabel = field_name)
 	end
 	gif(anim, string(folder_name, "/", gif_file_name), fps = 15)
 	gui()
@@ -331,6 +397,16 @@ end
 
 function animate_pressure()
 	animate("pressure.csv", "pressure.gif", "pressure", "P")
+end
+
+function animate_velocity()
+	animate("velocity.csv", "velocity.gif", "velocity", "v")
+end
+
+function animate_all()
+	animate_density()
+	animate_pressure()
+	animate_velocity()
 end
 
 end
