@@ -42,7 +42,7 @@ const gamma = 1.0
 #@show csR
 #const c = max(csL, csR)	#numerical speed of sound
 const c = 1.0
-#const mu = 1.0e-3		#dynamic viscosity of water
+const mu = 1.0e-01		#dynamic viscosity of water
 #const nu = 1.0e-3		#pressure stabilization
 #const P0 = 1.2          #anti-clump term
 
@@ -132,21 +132,20 @@ function make_system()
 	line = Rectangle(-0.2*chan_l, 0., 1.4*chan_l, h)
 	sys = ParticleSystem(Particle, line, h)
 	i1 = Int64(round(LRboundary/drL))
-	i2 = Int64(round(LRboundary/drR))
-	i3 = Int64(round((chan_l-LRboundary)/drR))
+	i2 = Int64(round((chan_l-LRboundary)/drR))
 	for i in 1:i1
 		push!(sys.particles, Particle(RealVector(((i-1)*drL, 0.0, 0.0)), rhoL, FLUID))	
 	end
-	for i in i2:i3
-		push!(sys.particles, Particle(RealVector((i*drR, 0.0, 0.0)), rhoR, FLUID))	
+	for i in 1:i2
+		push!(sys.particles, Particle(RealVector((LRboundary+i*drR, 0.0, 0.0)), rhoR, FLUID))	
 	end
 	sys.particles[1].type = WALL
 	sys.particles[2].type = WALL
 	sys.particles[3].type = WALL
 	N = length(sys.particles)
-	sys.particles[N-2].type = WALL
-	sys.particles[N-1].type = WALL
-	sys.particles[N].type = WALL
+	#sys.particles[N-2].type = WALL
+	#sys.particles[N-1].type = WALL
+	#sys.particles[N].type = WALL
 
     return sys
 end
@@ -187,7 +186,7 @@ end
 	if p.type == FLUID && q.type == FLUID
 		ker = m*rDwendland1(h,r)
 		p.a += -ker*(p.P/p.rho^2 + q.P/p.rho^2)*(p.x - q.x)
-		#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
+		p.a += +2*ker*mu*(p.v/p.rho - q.v/q.rho) #viscosity
 	elseif p.type == FLUID && q.type == WALL && r < dr_wall
 		s2 = (dr_wall^2 + eps^2)/(r^2 + eps^2)
 		p.a += -E_wall/(r^2 + eps^2)*(s2 - s2^2)*(p.x - q.x)
@@ -381,7 +380,8 @@ function animate(csv_file_name::String, gif_file_name::String, field_name::Strin
 	#savefig(p1, string(folder_name, "/", "plot.pdf"))
 
 	anim = @animate for i in 1:rows
-    		plot(xs, data[i,2:line_length], label = string("t=",data[i,1]), xlabel = "x", ylabel = field_name, ylims = (0., 1.))
+    		#plot(xs, data[i,2:line_length], label = string("t=",data[i,1]), xlabel = "x", ylabel = field_name, ylims = (0., 3.))
+    		plot(xs, data[i,2:line_length], label = string("t=",data[i,1]), xlabel = "x", ylabel = field_name)
 	end
 	gif(anim, string(folder_name, "/", gif_file_name), fps = 15)
 	gui()
