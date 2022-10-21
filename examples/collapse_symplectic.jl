@@ -25,6 +25,7 @@ include("utils/entropy.jl")
 include("utils/ICR.jl")
 using .FixPA
 using .entropy
+using LaTeXStrings #for better legends
 
 
 #using ReadVTK  #not implemented
@@ -320,6 +321,19 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 	save_pvd_file(out)
 
 end ## function main
+
+function plot_energy(energy_file::String)
+    df = DataFrame(CSV.File(energy_file))
+    times = df[:, "time_steps"]
+    e_pot = df[:, "E_graviational"]
+	Delta_e_pot = e_pot[1]-e_pot[end]
+	print("Delta e pot = ", Delta_e_pot)
+    e_tot = df[:, "E_total"]
+	e_tot0 = e_tot[1]
+	e_tot = (e_tot .- e_tot0)./Delta_e_pot
+    p = plot(times, e_tot, legend=:topright, label=L"\frac{E_{tot}-E_{tot}(0)}{E_g(end)-E_g(0)}")
+	savefig(p, "./energy_tot_scaled.pdf")
+end
 
 end ## module
 
