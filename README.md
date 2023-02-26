@@ -15,11 +15,11 @@ Pkg.add("SmoothedParticles")
 
 
 
-For start, you can try to run one of the examples. Follow these steps:
+For start, you can try to run dambreak simulation example. Follow these steps:
 
-1: Clone, download or copy file "collapse_dry.jl" from the [examples](https://github.com/OndrejKincl/SmoothedParticles.jl/tree/master/examples). 
+1: Clone, download or copy the folder [examples](https://github.com/OndrejKincl/SmoothedParticles.jl/tree/master/examples). 
 
-2: Open Julia from the destination folder with command:
+2: Open Julia from the folder with command:
 
 ```
 julia -t N
