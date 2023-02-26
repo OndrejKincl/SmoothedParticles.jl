@@ -1,102 +1,169 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>4: Lid-driven cavity · SmoothedParticles.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">SmoothedParticles.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="static_container.html">1: Static container</a></li><li><a class="tocitem" href="collapse_dry.html">2: Water collapse (explicit)</a></li><li><a class="tocitem" href="collapse_dry_implicit.html">3: Water collapse (implicit)</a></li><li class="is-active"><a class="tocitem" href="cavity_flow.html">4: Lid-driven cavity</a></li><li><a class="tocitem" href="cylinder.html">5: Flow around cylinder</a></li><li><a class="tocitem" href="drop.html">6: Surface tension simulation in 3D</a></li><li><a class="tocitem" href="collapse3d.html">7: Water collapse in 3D</a></li><li><a class="tocitem" href="collapse_symplectic.html">8: Water collapse (explicit, symplectic, and reversible)</a></li><li><a class="tocitem" href="Kepler_vortex.html">9: Kepler vortex (explicit, symplectic, and reversible)</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../core.html">Core</a></li><li><a class="tocitem" href="../kernels.html">Kernels</a></li><li><a class="tocitem" href="../structs.html">Structs</a></li><li><a class="tocitem" href="../geometry.html">Geometry</a></li><li><a class="tocitem" href="../IO.html">Input/Output</a></li><li><a class="tocitem" href="../grids.html">Grids</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="cavity_flow.html">4: Lid-driven cavity</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="cavity_flow.html">4: Lid-driven cavity</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OndrejKincl/SmoothedParticles.jl/blob/master/docs/src/examples/cavity_flow.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id=":-Lid-driven-cavity"><a class="docs-heading-anchor" href="#:-Lid-driven-cavity">4: Lid-driven cavity</a><a id=":-Lid-driven-cavity-1"></a><a class="docs-heading-anchor-permalink" href="#:-Lid-driven-cavity" title="Permalink"></a></h1><pre><code class="language-julia hljs">module cavity_flow
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Lid-driven cavity · SmoothedParticles.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">SmoothedParticles.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="static_container.html">Static container</a></li><li><a class="tocitem" href="collapse_dry.html">Water collapse (explicit)</a></li><li><a class="tocitem" href="collapse_dry_implicit.html">Water collapse (implicit)</a></li><li class="is-active"><a class="tocitem" href="cavity_flow.html">Lid-driven cavity</a></li><li><a class="tocitem" href="cylinder.html">Flow around cylinder</a></li><li><a class="tocitem" href="drop.html">Surface tension simulation in 3D</a></li><li><a class="tocitem" href="collapse3d.html">Water collapse in 3D</a></li><li><a class="tocitem" href="collapse_symplectic.html">Water collapse (explicit, symplectic, and reversible)</a></li><li><a class="tocitem" href="Kepler_vortex.html">Kepler vortex (explicit, symplectic, and reversible)</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../core.html">Core</a></li><li><a class="tocitem" href="../kernels.html">Kernels</a></li><li><a class="tocitem" href="../structs.html">Structs</a></li><li><a class="tocitem" href="../geometry.html">Geometry</a></li><li><a class="tocitem" href="../IO.html">Input/Output</a></li><li><a class="tocitem" href="../grids.html">Grids</a></li><li><a class="tocitem" href="../algebra.html">Algebra</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="cavity_flow.html">Lid-driven cavity</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="cavity_flow.html">Lid-driven cavity</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OndrejKincl/SmoothedParticles.jl/blob/master/docs/src/examples/cavity_flow.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Lid-driven-cavity"><a class="docs-heading-anchor" href="#Lid-driven-cavity">Lid-driven cavity</a><a id="Lid-driven-cavity-1"></a><a class="docs-heading-anchor-permalink" href="#Lid-driven-cavity" title="Permalink"></a></h1><p>Standard CFD benchmark, which allows comparison with very accurate mesh-based methods. Description of the problem can be found on many webpages, like <a href="https://web.mit.edu/calculix_v2.7/CalculiX/ccx_2.7/doc/ccx/node14.html">here</a>. In the image below, you can see streamlines for Re = 400 and N = 320. This was computed on cluster and took some time. To correctly resolve corner vortices is much more demanding in SPH than in FEM.</p>	<img src='../assets/cavity.png' alt='missing' width="50%" height="50%" /><br><p>Result is compared to the referential solution by <a href="https://www.sciencedirect.com/science/article/pii/0021999182900584">Ghia et al 1980</a>.</p><pre><code class="language-julia hljs">module cavity_flow
 
 using Printf
-using SmoothedParticles</code></pre><p>Declare const parameters (all dims in SI)</p><pre><code class="language-julia hljs">##geometrical/physical parameters
-const Re = 100.0                #Reynolds number
-const llid = 0.2                #length of the lid
-const mu = 8.4e-4               #viscosity of water
-const rho0 = 1.0e+3             #density of water
-const vlid = mu*Re/(rho0*llid)     #flow speed of the lid
-const dr = llid/70 		        #average particle distance
-const h = 2.2*dr		        #size of kernel support
+using SmoothedParticles
+using Plots, CSV, DataFrames, Printf, LaTeXStrings, Parameters</code></pre><h3 id="Declare-const-parameters-(dimensionless-problem)"><a class="docs-heading-anchor" href="#Declare-const-parameters-(dimensionless-problem)">Declare const parameters (dimensionless problem)</a><a id="Declare-const-parameters-(dimensionless-problem)-1"></a><a class="docs-heading-anchor-permalink" href="#Declare-const-parameters-(dimensionless-problem)" title="Permalink"></a></h3><pre><code class="language-julia hljs">##geometrical/physical parameters
+const N  =   100                #number of sample points
+const Re =   100                #Reynolds number
+const llid = 1.0                #length of the lid
+const mu =   1.0/Re             #viscosity
+const rho0 = 1.0                #density
+const vlid = 1.0                #flow speed of the lid
+const dr = llid/N 		        #interparticle distance
+const h = 3.0*dr		        #size of kernel support
 const m = rho0*dr^2             #particle mass
-const c = 10*vlid			#numerical speed of sound
+const c = 20*vlid		    	#numerical speed of sound
+const P0 = 5.0                  #background pressure (good to prevent tensile instability)
 const wwall = h
 
 ##temporal parameters
-const dt = 0.2*h/c              #numerical time-step
-const dt_frame = 20.           #how often save data
-const t_end = 2000.            #end of simulation
+const dt = 0.1*h/c                       #numerical time-step
+const t_end = 0.4                        #end of simulation
+const dt_frame = max(dt, t_end/200)      #how often save data
 
 ##particle types
 const FLUID = 0.
 const WALL = 1.
-const LID = 2.</code></pre><p>Declare variables to be stored in a Particle</p><pre><code class="language-julia hljs">mutable struct Particle &lt;: AbstractParticle
-	x::RealVector	#position
-	v::RealVector #velocity
-	a::RealVector #acceleratation
-	rho::Float64 #density
-	Drho::Float64 #rate of density
-	P::Float64 #pressure
-	type::Float64 #particle type
-	Particle(x::RealVector, type::Float64) = begin
-		speed = (type == LID ? vlid : 0.)
-		return new(x, speed*VECX, VEC0, rho0, 0., 0., type)
-	end
-end</code></pre><p>Define geometry and create particles</p><pre><code class="language-julia hljs">function make_system()
+const LID = 2.
+
+##path to store results
+const path = &quot;results/cavity_flow&quot;*string(Re)</code></pre><h3 id="Declare-variables-to-be-stored-in-a-Particle"><a class="docs-heading-anchor" href="#Declare-variables-to-be-stored-in-a-Particle">Declare variables to be stored in a Particle</a><a id="Declare-variables-to-be-stored-in-a-Particle-1"></a><a class="docs-heading-anchor-permalink" href="#Declare-variables-to-be-stored-in-a-Particle" title="Permalink"></a></h3><pre><code class="language-julia hljs">@with_kw mutable struct Particle &lt;: AbstractParticle
+	x::RealVector=VEC0	#position
+	v::RealVector=VEC0  #velocity
+	Dv::RealVector=VEC0 #acceleratation
+	rho::Float64=rho0   #density
+	Drho::Float64=0.0   #rate of density
+	P::Float64=0.0      #pressure
+	type::Float64       #particle type
+end</code></pre><h3 id="Define-geometry-and-create-particles"><a class="docs-heading-anchor" href="#Define-geometry-and-create-particles">Define geometry and create particles</a><a id="Define-geometry-and-create-particles-1"></a><a class="docs-heading-anchor-permalink" href="#Define-geometry-and-create-particles" title="Permalink"></a></h3><pre><code class="language-julia hljs">function make_system()
 	grid = Grid(dr, :hexagonal)
 	box = Rectangle(0., 0., llid, llid)
 	wall = BoundaryLayer(box, grid, wwall)
 	sys = ParticleSystem(Particle, box + wall, h)
-
 	lid   = Specification(wall, x -&gt; x[2] &gt; llid)
 	wall = Specification(wall, x -&gt; x[2] &lt;= llid)
-
-	generate_particles!(sys, grid, box, x -&gt; Particle(x, FLUID))
-	generate_particles!(sys, grid, lid, x -&gt; Particle(x, LID))
-	generate_particles!(sys, grid, wall, x -&gt; Particle(x, WALL))
+	generate_particles!(sys, grid, box, x -&gt; Particle(x=x, type=FLUID))
+	generate_particles!(sys, grid, lid, x -&gt; Particle(x=x, type=LID))
+	generate_particles!(sys, grid, wall, x -&gt; Particle(x=x, type=WALL))
+	create_cell_list!(sys)
+	apply!(sys, find_pressure!)
+	apply!(sys, internal_force!)
 	return sys
-end</code></pre><p>Define interactions between particles</p><pre><code class="language-julia hljs">#Define interactions between particles
-
-@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-	if p.type == FLUID
-		ker = m*rDwendland2(h,r)
-		p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
-	end
+end</code></pre><h3 id="Define-interactions-between-particles"><a class="docs-heading-anchor" href="#Define-interactions-between-particles">Define interactions between particles</a><a id="Define-interactions-between-particles-1"></a><a class="docs-heading-anchor-permalink" href="#Define-interactions-between-particles" title="Permalink"></a></h3><pre><code class="language-julia hljs">function balance_of_mass!(p::Particle, q::Particle, r::Float64)
+	p.Drho += m*rDwendland2(h,r)*(dot(p.x-q.x, p.v-q.v))
 end
 
 function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
-	p.P = c^2*(p.rho-rho0)
+	p.P = P0 + c^2*(p.rho-rho0)
 end
 
-@inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
-	p.a += +2*ker*(mu/rho0^2)*(p.v - q.v)
+function internal_force!(p::Particle, q::Particle, r::Float64)
+	rDk = rDwendland2(h,r)
+	x_pq = p.x - q.x
+	v_pq = p.v - q.v</code></pre><p>implementation of the Dirichlet boundary condition at the lid v_q is estimated using linear extrapolation</p><pre><code class="language-julia hljs">	if q.type == LID
+        s = abs(x_pq[2])/(0.1*h + abs(p.x[2] - 1.0))
+        v_pq = s*(p.v - vlid*VECX)
+    end
+	p.Dv += -m*rDk*(p.P/p.rho^2 + q.P/q.rho^2)*x_pq
+	p.Dv += 8/(Re*p.rho*q.rho)*m*rDk*dot(v_pq, x_pq)/(r^2 + 0.01*h^2)*x_pq #Monaghan&#39;s type of viscosity to conserve angular momentum
 end
+
 
 function move!(p::Particle)
-	p.a = VEC0
+	p.Dv = VEC0
 	if p.type == FLUID
-		p.x += dt*p.v
+		p.x += 0.5*dt*p.v
 	end
 end
 
 function accelerate!(p::Particle)
 	if p.type == FLUID
-		p.v += 0.5*dt*p.a
+		p.v += 0.5*dt*p.Dv
 	end
-end</code></pre><p>Time iteration</p><pre><code class="language-julia hljs">function main()
+end</code></pre><h3 id="Time-iteration"><a class="docs-heading-anchor" href="#Time-iteration">Time iteration</a><a id="Time-iteration-1"></a><a class="docs-heading-anchor-permalink" href="#Time-iteration" title="Permalink"></a></h3><pre><code class="language-julia hljs">function main()
 	sys = make_system()
-	out = new_pvd_file(&quot;results/cavity_flow&quot;)
+	out = new_pvd_file(path)
 	@time for k = 0 : Int64(round(t_end/dt))
+		apply!(sys, accelerate!)
 		apply!(sys, move!)
 		create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
 		apply!(sys, find_pressure!)
+		apply!(sys, move!)
+		create_cell_list!(sys)
 		apply!(sys, internal_force!)
-		apply!(sys, accelerate!)
 		if (k % Int64(round(dt_frame/dt)) == 0) #save the frame
-			t = k*dt
-			@show t
+			@printf(&quot;t = %.6e s &quot;, k*dt)
+			println(&quot;(&quot;,round(100*k*dt/t_end),&quot;% complete)&quot;)
 			save_frame!(out, sys, :P, :v, :type)
 		end
 		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
+	compute_fluxes(sys)
+	make_plot()
+end</code></pre><h3 id="Functions-to-extract-results-and-create-plots."><a class="docs-heading-anchor" href="#Functions-to-extract-results-and-create-plots.">Functions to extract results and create plots.</a><a id="Functions-to-extract-results-and-create-plots.-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-to-extract-results-and-create-plots." title="Permalink"></a></h3><pre><code class="language-julia hljs">function compute_fluxes(sys::ParticleSystem, res = 100)
+    s = range(0.,1.,length=res)
+    v1 = zeros(res)
+    v2 = zeros(res)
+    for i in 1:res
+		#x-velocity along y-centerline
+		x = RealVector(0.5, s[i], 0.)
+		gamma = SmoothedParticles.sum(sys, (p,r) -&gt; Float64(p.type==FLUID)*m*wendland2(h,r), x)
+        v1[i] = SmoothedParticles.sum(sys, (p,r) -&gt; Float64(p.type==FLUID)*m*p.v[1]*wendland2(h,r), x)/gamma
+		#y-velocity along x-centerline
+		x = RealVector(s[i], 0.5, 0.)
+		gamma = SmoothedParticles.sum(sys, (p,r) -&gt; Float64(p.type==FLUID)*m*wendland2(h,r), x)
+        v2[i] = SmoothedParticles.sum(sys, (p,r) -&gt; Float64(p.type==FLUID)*m*p.v[2]*wendland2(h,r), x)/gamma
+    end
+    #save results into csv
+    data = DataFrame(s=s, v1=v1, v2=v2)
+	CSV.write(path*&quot;/data.csv&quot;, data)
+	make_plot()
 end
 
-end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="collapse_dry_implicit.html">« 3: Water collapse (implicit)</a><a class="docs-footer-nextpage" href="cylinder.html">5: Flow around cylinder »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Friday 1 July 2022 11:29">Friday 1 July 2022</span>. Using Julia version 1.6.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+function make_plot(Re=Re)
+	ref_x2vy = CSV.read(&quot;reference/ldc-x2vy.csv&quot;, DataFrame)
+	ref_y2vx = CSV.read(&quot;reference/ldc-y2vx.csv&quot;, DataFrame)
+	propertyname = Symbol(&quot;Re&quot;, Re)
+	ref_vy = getproperty(ref_x2vy, propertyname)
+	ref_vx = getproperty(ref_y2vx, propertyname)
+	ref_x = ref_x2vy.x
+	ref_y = ref_y2vx.y
+	data = CSV.read(path*&quot;/data.csv&quot;, DataFrame)
+	p1 = plot(
+		data.s, data.v2,
+		xlabel = L&quot;x&quot;,
+		ylabel = L&quot;v_y&quot;,
+		label = &quot;SPH&quot;,
+		linewidth = 4,
+		legend = :bottomleft,
+		color = :orange,
+		tickfontsize = 16,
+		labelfontsize = 16,
+		legendfontsize = 16,
+		aspect_ratio = 1,
+	)
+	scatter!(p1, ref_x, ref_vy, label = &quot;REF&quot;, markershape = :diamond, ms = 5, color = :blue)
+	savefig(p1, path*&quot;/ldc-x2vy.pdf&quot;)
+	p2 = plot(
+		data.v1, data.s,
+		xlabel = L&quot;v_x&quot;,
+		ylabel = L&quot;y&quot;,
+		label = &quot;SPH&quot;,
+		linewidth = 4,
+		legend = :bottomright,
+		color = :orange,
+		tickfontsize = 16,
+		labelfontsize = 16,
+		legendfontsize = 16,
+		aspect_ratio = 1,
+	)
+	scatter!(p2, ref_vx, ref_y,  label = &quot;REF&quot;, markershape = :diamond, ms = 5, color = :blue)
+	savefig(p2, path*&quot;/ldc-y2vx.pdf&quot;)
+end
+
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="collapse_dry_implicit.html">« Water collapse (implicit)</a><a class="docs-footer-nextpage" href="cylinder.html">Flow around cylinder »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 26 February 2023 18:52">Sunday 26 February 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

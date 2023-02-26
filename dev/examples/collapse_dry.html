@@ -1,141 +1,158 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>2: Water collapse (explicit) · SmoothedParticles.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.044/juliamono.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">SmoothedParticles.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="static_container.html">1: Static container</a></li><li class="is-active"><a class="tocitem" href="collapse_dry.html">2: Water collapse (explicit)</a></li><li><a class="tocitem" href="collapse_dry_implicit.html">3: Water collapse (implicit)</a></li><li><a class="tocitem" href="cavity_flow.html">4: Lid-driven cavity</a></li><li><a class="tocitem" href="cylinder.html">5: Flow around cylinder</a></li><li><a class="tocitem" href="drop.html">6: Surface tension simulation in 3D</a></li><li><a class="tocitem" href="collapse3d.html">7: Water collapse in 3D</a></li><li><a class="tocitem" href="collapse_symplectic.html">8: Water collapse (explicit, symplectic, and reversible)</a></li><li><a class="tocitem" href="Kepler_vortex.html">9: Kepler vortex (explicit, symplectic, and reversible)</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../core.html">Core</a></li><li><a class="tocitem" href="../kernels.html">Kernels</a></li><li><a class="tocitem" href="../structs.html">Structs</a></li><li><a class="tocitem" href="../geometry.html">Geometry</a></li><li><a class="tocitem" href="../IO.html">Input/Output</a></li><li><a class="tocitem" href="../grids.html">Grids</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="collapse_dry.html">2: Water collapse (explicit)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="collapse_dry.html">2: Water collapse (explicit)</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OndrejKincl/SmoothedParticles.jl/blob/master/docs/src/examples/collapse_dry.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id=":-Water-collapse-(explicit)"><a class="docs-heading-anchor" href="#:-Water-collapse-(explicit)">2: Water collapse (explicit)</a><a id=":-Water-collapse-(explicit)-1"></a><a class="docs-heading-anchor-permalink" href="#:-Water-collapse-(explicit)" title="Permalink"></a></h1>	<img src='../assets/collapse_exp.png' alt='missing' width="50%" height="50%" /><br><p>Simulation of a water column collapsing under its own weight onto dry bottom. This is, where SPH is more useful than typical mesh-based methods</p><pre><code class="language-julia hljs">module collapse_dry
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Water collapse (explicit) · SmoothedParticles.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">SmoothedParticles.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="static_container.html">Static container</a></li><li class="is-active"><a class="tocitem" href="collapse_dry.html">Water collapse (explicit)</a></li><li><a class="tocitem" href="collapse_dry_implicit.html">Water collapse (implicit)</a></li><li><a class="tocitem" href="cavity_flow.html">Lid-driven cavity</a></li><li><a class="tocitem" href="cylinder.html">Flow around cylinder</a></li><li><a class="tocitem" href="drop.html">Surface tension simulation in 3D</a></li><li><a class="tocitem" href="collapse3d.html">Water collapse in 3D</a></li><li><a class="tocitem" href="collapse_symplectic.html">Water collapse (explicit, symplectic, and reversible)</a></li><li><a class="tocitem" href="Kepler_vortex.html">Kepler vortex (explicit, symplectic, and reversible)</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../core.html">Core</a></li><li><a class="tocitem" href="../kernels.html">Kernels</a></li><li><a class="tocitem" href="../structs.html">Structs</a></li><li><a class="tocitem" href="../geometry.html">Geometry</a></li><li><a class="tocitem" href="../IO.html">Input/Output</a></li><li><a class="tocitem" href="../grids.html">Grids</a></li><li><a class="tocitem" href="../algebra.html">Algebra</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="collapse_dry.html">Water collapse (explicit)</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="collapse_dry.html">Water collapse (explicit)</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OndrejKincl/SmoothedParticles.jl/blob/master/docs/src/examples/collapse_dry.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Water-collapse-(explicit)"><a class="docs-heading-anchor" href="#Water-collapse-(explicit)">Water collapse (explicit)</a><a id="Water-collapse-(explicit)-1"></a><a class="docs-heading-anchor-permalink" href="#Water-collapse-(explicit)" title="Permalink"></a></h1>	<img src='../assets/collapse.png' alt='missing' width="50%" height="50%" /><br><p>Simulation of a water column collapsing under its own weight. This would be very difficult to make in a mesh-based method like FDM, FEM or FVM. Fortunately, SPH turns this into an easy task. We use a very basic explicit SPH scheme with pressure-stabilized Verlet time integrator. This benchmark is (more or less) a recomputation of a simulation described in D. Violeau, <a href="https://books.google.cz/books?hl=en&amp;lr=&amp;id=8_RQEAAAQBAJ&amp;oi=fnd&amp;pg=PP1&amp;dq=violeau+fluid+mechanics&amp;ots=9dcGEu27hR&amp;sig=jeE157G1gUvzv1v1TKDtQeswWeA&amp;redir_esc=y#v=onepage&amp;q=violeau%20fluid%20mechanics&amp;f=false">FLUID MECHANICS AND THE SPH METHOD</a>, page 484. We show how to implement it using SmoothedParticles.jl. Dependencies can be installed with</p><pre><code class="nohighlight hljs">import Pkg
+Pkg.add(&quot;Printf&quot;)
+Pkg.add(&quot;CSV&quot;)
+Pkg.add(&quot;DataFrames&quot;)
+Pkg.add(&quot;Parameters&quot;)
+Pkg.add(&quot;Plots&quot;)</code></pre><h3 id="Import-essential-packages."><a class="docs-heading-anchor" href="#Import-essential-packages.">Import essential packages.</a><a id="Import-essential-packages.-1"></a><a class="docs-heading-anchor-permalink" href="#Import-essential-packages." title="Permalink"></a></h3><pre><code class="language-julia hljs">module collapse_dry
 
 using Printf
 using SmoothedParticles
 using CSV
-using DataFrames</code></pre><p>Declare constant parameters</p><pre><code class="language-julia hljs">##physical
-const dr = 2.0e-2          #average particle distance (decrease to make finer simulation)
-const h = 3.0*dr           #size of kernel support
-const rho0 = 1000.   	   #fluid density
-const m = rho0*dr^2        #particle mass
-const c = 50.0             #numerical speed of sound
-const g = -9.8*VECY        #gravitational acceleration
-const mu = 8.4e-4          #dynamic viscosity of water
-const nu = 1.0e-4          #pressure stabilization
+using DataFrames
+using Parameters
+using Plots</code></pre><h3 id="Constant-parameters"><a class="docs-heading-anchor" href="#Constant-parameters">Constant parameters</a><a id="Constant-parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Constant-parameters" title="Permalink"></a></h3><p>Importantly, modifier <code>const</code> avoids memory allocations.</p><pre><code class="language-julia hljs"># physical
+const dr = 1.5e-2          # average particle distance (decrease to refine, increase to speed up)
+const h = 3.0*dr           # size of kernel radius (twice the smoothing length)
+const rho0 = 1000.   	   # fluid density
+const m = rho0*dr^2        # particle mass
+const c = 50.0             # numerical speed of sound
+const g = -7.0*VECY        # gravitational acceleration
+const mu = 8.4e-4          # dynamic viscosity of water
+const nu = 1.0e-6          # artificial pressure stabilization
 
-##geometrical
+# geometrical
 const water_column_width = 1.0
 const water_column_height = 2.0
 const box_height = 3.0
 const box_width = 4.0
 const wall_width = 2.5*dr
 
-##temporal
-const dt = 0.1*h/c
-const t_end = 1.0
-const dt_frame = t_end/50
+# temporal
+const dt = 0.1*h/c                      # numerical time step
+const t_end = 4.0                       # when to terminate (in seconds)
+const dt_frame = max(dt,t_end/200)      # time step in the output (dt = dt_frame would save every frame, generating huge files)
 
 
 ##particle types
-const FLUID = 0.
-const WALL = 1.</code></pre><p>Declare variables to be stored in a Particle</p><pre><code class="language-julia hljs">mutable struct Particle &lt;: AbstractParticle
-	x::RealVector #position
-	v::RealVector #velocity
-	a::RealVector #acceleration
-	P::Float64 #pressure
-	rho::Float64 #density
-	Drho::Float64 #rate of density
-	type::Float64 #particle_type
-	Particle(x, type) = new(
-		x, VEC0, VEC0,
-		0.,
-		rho0, 0.,
-		type
-	)
-end</code></pre><p>Define geometry and make particles</p><pre><code class="language-julia hljs">function make_system()
-	grid = Grid(dr, :square)
-	box = Rectangle(0., 0., box_width, box_height)
-	fluid = Rectangle(0., 0., water_column_width, water_column_height)
-	walls = BoundaryLayer(box, grid, wall_width)
-	walls = Specification(walls, x -&gt; (x[2] &lt; box_height))
-	sys = ParticleSystem(Particle, box + walls, h)
-	generate_particles!(sys, grid, fluid, x -&gt; Particle(x, FLUID))
-	generate_particles!(sys, grid, walls, x -&gt; Particle(x, WALL))
+const FLUID = 0.   # fluid marker
+const WALL = 1.    # wall marker</code></pre><h3 id="Particle-variables"><a class="docs-heading-anchor" href="#Particle-variables">Particle variables</a><a id="Particle-variables-1"></a><a class="docs-heading-anchor-permalink" href="#Particle-variables" title="Permalink"></a></h3><pre><code class="language-julia hljs">@with_kw mutable struct Particle &lt;: AbstractParticle
+	x::RealVector         # position
+	v::RealVector = VEC0  # velocity
+	Dv::RealVector = VEC0 # acceleration
+	rho::Float64 = rho0   # density
+	Drho::Float64 = 0.    # rate of density
+	P::Float64 = 0.       # pressure
+	type::Float64         # particle_type
+end</code></pre><h3 id="Geometry"><a class="docs-heading-anchor" href="#Geometry">Geometry</a><a id="Geometry-1"></a><a class="docs-heading-anchor-permalink" href="#Geometry" title="Permalink"></a></h3><pre><code class="language-julia hljs">function make_system()
+	grid = Grid(dr, :hexagonal)                                              # use hexagonal grid
+	box = Rectangle(0., 0., box_width, box_height)                           # laboratory box
+	fluid = Rectangle(0., 0., water_column_width, water_column_height)       # column of fluid
+	walls = BoundaryLayer(box, grid, wall_width)                             # walls around laboratory box
+	walls = Specification(walls, x -&gt; (x[2] &lt; box_height))                   # remove top lid
+	sys = ParticleSystem(Particle, box + walls, h)                           # define particle system by specifying particle type, domain and maximal kernel radius
+	generate_particles!(sys, grid, fluid, x -&gt; Particle(x=x, type=FLUID))    # fill fluid geometry with particles
+	generate_particles!(sys, grid, walls, x -&gt; Particle(x=x, type=WALL))     # fill wall geometry with particles
+	for p in sys.particles
+		p.P = rho0*g[2]*(p.x[2] - water_column_height)                       # hydrostatic pressure
+		p.rho = rho0 + p.P/c^2                                               # solve for density
+	end
 	return sys
-end</code></pre><p>Define particle interactions</p><pre><code class="language-julia hljs">@inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
+end</code></pre><h3 id="Particle-interactions"><a class="docs-heading-anchor" href="#Particle-interactions">Particle interactions</a><a id="Particle-interactions-1"></a><a class="docs-heading-anchor-permalink" href="#Particle-interactions" title="Permalink"></a></h3><p>Rate of density is</p><p><span>$\dot{\varrho}_p = \sum_q m_q \left( \mathbf{x}_{pq} \cdot \mathbf{v}_{pq} + 2 \nu \varrho_{pq} \right) \frac{w&#39;_{pq}}{r_{pq}}$</span></p><pre><code class="language-julia hljs">function balance_of_mass!(p::Particle, q::Particle, r::Float64)
 	ker = m*rDwendland2(h,r)
 	p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
-end
-
-function find_pressure!(p::Particle)
+end</code></pre><p>Linear formula for pressure. Tait equation can be used instead but the difference is mostly negligible.</p><p><span>$P_p = c^2 (\varrho_p - \varrho_0)$</span></p><pre><code class="language-julia hljs">function find_pressure!(p::Particle)
 	p.rho += p.Drho*dt
 	p.Drho = 0.0
 	p.P = c^2*(p.rho - rho0)
-end
-
-@inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
+end</code></pre><p>Internal forces between particles are pressure and viscosity. Wall particles are excluded.</p><p><span>$\dot{\mathbf{v}}_p = -\sum_q m_q \left( \frac{P_p}{\rho_p^2} + \frac{P_q}{\rho_q^2} \right)  \frac{w&#39;_{pq}}{r_{pq}} \mathbf{x}_{pq} + \frac{2 \mu}{\rho_0^2}\sum_q m_q  \frac{w&#39;_{pq}}{r_{pq}} \mathbf{v}_{pq}$</span></p><pre><code class="language-julia hljs">function internal_force!(p::Particle, q::Particle, r::Float64)
 	if p.type == FLUID
 		ker = m*rDwendland2(h,r)
-		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
-		p.a += +2*ker*mu/rho0^2*(p.v - q.v)
+		p.Dv += -ker*(p.P/p.rho^2 + q.P/q.rho^2)*(p.x - q.x)
+		p.Dv += +2*ker*mu/rho0^2*(p.v - q.v)
 	end
-end
-
-function move!(p::Particle)
-	p.a = VEC0
+end</code></pre><h3 id="Position-and-velocity-updates"><a class="docs-heading-anchor" href="#Position-and-velocity-updates">Position and velocity updates</a><a id="Position-and-velocity-updates-1"></a><a class="docs-heading-anchor-permalink" href="#Position-and-velocity-updates" title="Permalink"></a></h3><p>Updating by half-time step is a feature of Verlet integrator.</p><pre><code class="language-julia hljs">function move!(p::Particle)
+	p.Dv = VEC0
 	if p.type == FLUID
-		p.x += dt*p.v
+		p.x += 0.5*dt*p.v
 	end
 end
 
 function accelerate!(p::Particle)
 	if p.type == FLUID
-		p.v += 0.5*dt*(p.a + g)
+		p.v += 0.5*dt*(p.Dv + g)
 	end
-end
-
-function energy(p::Particle)::Float64
+end</code></pre><h3 id="Extract-global-variables"><a class="docs-heading-anchor" href="#Extract-global-variables">Extract global variables</a><a id="Extract-global-variables-1"></a><a class="docs-heading-anchor-permalink" href="#Extract-global-variables" title="Permalink"></a></h3><p>Variables of interest are total energy, water column height and wavefront location.</p><pre><code class="language-julia hljs">function energy(p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	potential = -m*dot(g, p.x)
-	internal =  0.5*m*c^2*(p.rho - rho0)^2/rho0^2
+	internal =  m*c^2*(log(abs(p.rho/rho0)) + rho0/p.rho - 1.0)
 	return kinetic + potential + internal
 end
 
-function compute_max(sys::ParticleSystem)::NTuple{2,Float64}
-	H = -Inf
-	X = -Inf
+function get_globals(sys::ParticleSystem)::NTuple{3,Float64}
+	H = 0.0  # height of water column
+	X = 0.0  # wavefront x-coordinate
+	E = 0.0  # total energy
 	for p in sys.particles
-		if p.type == FLUID &amp;&amp; p.x[1] &gt; X
-			X = p.x[1]
+		if p.type == FLUID
+			X = max(X, p.x[1]/water_column_width)
 		end
-		if p.type == FLUID &amp;&amp; p.x[1] &gt; 2*h &amp;&amp; p.x[2] &gt; H
-			H = p.x[2]
+		if p.type == FLUID &amp;&amp; 2.0 &gt; p.x[1] &gt; h
+			H = max(H, p.x[2]/water_column_height)
 		end
+		E += energy(p)
 	end
-	return (X-1.0,0.5*H)
-end</code></pre><p>Put everything into a time loop</p><pre><code class="language-julia hljs">function main()
+	return (X,H,E)
+end</code></pre><h3 id="Time-loop"><a class="docs-heading-anchor" href="#Time-loop">Time loop</a><a id="Time-loop-1"></a><a class="docs-heading-anchor-permalink" href="#Time-loop" title="Permalink"></a></h3><p>SmoothedParticles.jl will automatically run this in parallel and use neighbor list acceleration. Command <code>create_cell_list!(sys)</code> must be called at the beginning and each time after particles move.</p><pre><code class="language-julia hljs">function main()
 	ts = []
 	Xs = []
 	Hs = []
 	sys = make_system()
 	out = new_pvd_file(&quot;results/collapse_dry&quot;)
-	#a modified Verlet scheme
-	@time for k = 0 : Int64(round(t_end/dt))
-	#move particles
+	create_cell_list!(sys)
+	apply!(sys, internal_force!)
+	@time for k = 0 : round(Int64, t_end/dt)
+		apply!(sys, accelerate!)
 		apply!(sys, move!)
 		create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
 		apply!(sys, find_pressure!)
+		apply!(sys, move!)
+		create_cell_list!(sys)
 		apply!(sys, internal_force!)
 		apply!(sys, accelerate!)
-		#save data at selected frames
-		if (k % Int64(round(dt_frame/dt)) == 0)
-			@printf(&quot;t = %.6e\n&quot;, k*dt)
-			@printf(&quot;E = %.6e\n&quot;, sum(energy, sys.particles))
+		# save data at selected frames
+		if (k % round(Int64, dt_frame/dt) == 0)
+			@printf(&quot;t = %.6e s &quot;, k*dt)
+			println(&quot;(&quot;,round(100*k*dt/t_end),&quot;% complete)&quot;)
+			(X, H, E) = get_globals(sys)
+			@printf(&quot;energy = %.6e J\n&quot;, E)
 			@printf(&quot;\n&quot;)
-			(X, H) = compute_max(sys)
 			push!(Xs, X)
 			push!(Hs, H)
 			push!(ts, k*dt*sqrt(-2*g[2]))
-			save_frame!(out, sys, :v, :P, :rho, :type)
+			save_frame!(out, sys, :v, :P, :type)
 		end
-		#accelerate
-		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
-	df = DataFrame(time = ts, X = Xs, H = Hs)
-	CSV.write(&quot;results/collapse_dry/data.csv&quot;, df)
-end ## function main
+	data = DataFrame(time = ts, X = Xs, H = Hs)
+	CSV.write(&quot;results/collapse_dry/data.csv&quot;, data)
+	@info &quot;drawing a plot with results&quot;
+	make_plot()
+end ## function main</code></pre><p>Compare computed results to the book by Violeau and the experiment of Koshizuka and Oka (1996)</p><pre><code class="language-julia hljs">function make_plot()
+	data = CSV.read(&quot;results/collapse_dry/data.csv&quot;, DataFrame)
+	X_VIO = CSV.read(&quot;reference/dambreak_X_Violeau.csv&quot;, DataFrame)
+	X_KOS = CSV.read(&quot;reference/dambreak_X_Koshizuka.csv&quot;, DataFrame)
+	H_VIO = CSV.read(&quot;reference/dambreak_H_Violeau.csv&quot;, DataFrame)
+	H_KOS = CSV.read(&quot;reference/dambreak_H_Koshizuka.csv&quot;, DataFrame)
+	p1 = plot(data.time, data.X, label = &quot;SmoothedParticles.jl&quot;, xlims = (0., 3.0))
+	scatter!(p1, X_VIO.time, X_VIO.X, label = &quot;Violeau&quot;)
+	scatter!(p1, X_KOS.time, X_KOS.X, label = &quot;Koshizuka&amp;Oda&quot;, markershape = :square)
+	savefig(p1, &quot;results/collapse_dry/dambreak_X.pdf&quot;)
+	p2 = plot(data.time, data.H, label = &quot;SmoothedParticles.jl&quot;, xlims = (0., 3.0))
+	scatter!(p2, H_VIO.time, H_VIO.H, label = &quot;Violeau&quot;)
+	scatter!(p2, H_KOS.time, H_KOS.H, label = &quot;Koshizuka&amp;Oda&quot;, markershape = :square)
+	savefig(p2, &quot;results/collapse_dry/dambreak_H.pdf&quot;)
+end
 
-end ## module</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="static_container.html">« 1: Static container</a><a class="docs-footer-nextpage" href="collapse_dry_implicit.html">3: Water collapse (implicit) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.19 on <span class="colophon-date" title="Friday 1 July 2022 11:29">Friday 1 July 2022</span>. Using Julia version 1.6.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end ## module</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="static_container.html">« Static container</a><a class="docs-footer-nextpage" href="collapse_dry_implicit.html">Water collapse (implicit) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 26 February 2023 18:52">Sunday 26 February 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
