@@ -203,26 +203,26 @@ end
 	return -66.84507609859604*((1.0 - 4.0*x)*(1.0 - x)^2)/h^5
 end
 
-@fastmath function spiky3(h::Float64, r::Float64)::Float64
+@fastmath function wendland1(h::Float64, r::Float64)::Float64
 	x = r/h
-	#15/2pi = 2.3873241463784303
-	return 2.3873241463784303*(1.0 - x)^2/h^3
+	if (x > 1.0)
+		return 0.0
+	end
+	return 1.5*((1.0 - x)^4)*(1.0 + 4.0*x)/h
 end
 
-@fastmath function Dspiky3(h::Float64, r::Float64)::Float64
+@fastmath function Dwendland1(h::Float64, r::Float64)::Float64
 	x = r/h
-	#15/pi = 4.7746482927568605
-	return -(x < 1.0)*2.3873241463784303*(1.0 - x)/h^4
+	if (x > 1.0)
+		return 0.0
+	end
+	return -30.0*x*((1.0 - x)^3)/h^2
 end
 
-@fastmath function rDspiky3(h::Float64, r::Float64)::Float64
+@fastmath function rDwendland1(h::Float64, r::Float64)::Float64
 	x = r/h
-	#15/pi = 4.7746482927568605
-	return -(x < 1.0)*2.3873241463784303*(1.0 - x)/((x + 1e-6)*h^5)
-end
-
-@fastmath function DDspiky3(h::Float64, r::Float64)::Float64
-	x = r/h
-	#15/pi = 4.7746482927568605
-	return (x < 1.0)*2.3873241463784303/h^5
+	if (x > 1.0)
+		return 0.0
+	end
+	return -30.0*((1.0 - x)^3)/h^3
 end

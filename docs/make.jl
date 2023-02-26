@@ -5,7 +5,7 @@ using Pkg, Documenter, Literate, SmoothedParticles
 #
 function replace_source_url(input,source_url)
     lines_in = collect(eachline(IOBuffer(input)))
-    lines_out=IOBuffer()
+    lines_out = IOBuffer()
     for line in lines_in
         println(lines_out,replace(line,"SOURCE_URL" => source_url))
     end
@@ -62,7 +62,8 @@ function make_all()
                 "structs.md",
                 "geometry.md",
                 "IO.md",
-                "grids.md"
+                "grids.md",
+                "algebra.md"
             ],
         ]
     )
@@ -70,7 +71,8 @@ end
 
 make_all()
 
+#=
 deploydocs(
     repo = "github.com/OndrejKincl/SmoothedParticles.jl.git",
 )
-            
+=#          

@@ -1,3 +1,10 @@
+#=
+
+# Bending of an elastic rod
+
+=#
+
+
 module rod
 using SmoothedParticles
 using Parameters

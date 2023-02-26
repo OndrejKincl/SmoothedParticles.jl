@@ -22,11 +22,15 @@ function test_local_ker(dim::Int64, f, Df, rDf)
     @test f(h, 4.0) == 0.
     @test isfinite(f(h, 0.0))
     int = 0.
-    if dim == 2
+    if dim == 1
+        int = simpson_rule(r -> 2.0*f(h,r), 0., h)
+    elseif dim == 2
         int = simpson_rule(r -> 2.0*pi*r*f(h,r), 0., h)
     elseif dim == 3
         int = simpson_rule(r -> 4.0*pi*r*r*f(h,r), 0., h)
-    end
+    else
+        throw("invalid dimension = "*string(dim))
+    end 
     @test int ≈ 1.0 rtol=TOL
     @test Df(h, 4.0) == 0.
     @test isfinite(Df(h, 0.0))
@@ -39,17 +43,20 @@ function test_local_ker(dim::Int64, f, Df, rDf)
 end
 
 function main()
+    @testset "wendland1" begin
+        test_local_ker(1, wendland1, Dwendland1, rDwendland1)
+    end
     @testset "wendland2" begin
         test_local_ker(2, wendland2, Dwendland2, rDwendland2)
+    end
+    @testset "wendland3" begin
+        test_local_ker(3, wendland3, Dwendland3, rDwendland3)
     end
     @testset "spline23" begin
         test_local_ker(2, spline23, Dspline23, rDspline23)
     end
     @testset "spline24" begin
         test_local_ker(2, spline24, Dspline24, rDspline24)
-    end
-    @testset "wendland3" begin
-        test_local_ker(3, wendland3, Dwendland3, rDwendland3)
     end
 end
 

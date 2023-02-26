@@ -1,6 +1,6 @@
 #=
 
-# 8: Water collapse (explicit, symplectic, and reversible)
+# Water collapse (explicit, symplectic, and reversible)
 
 ```@raw html
 	<img src='../assets/fixpa.png' alt='missing' width="50%" height="50%" /><br>
@@ -34,12 +34,12 @@ Declare constant parameters
 =#
 
 ##physical
-const dr = 1.0e-2          #average particle distance (decrease to make finer simulation)
-const h = 3.0*dr           #size of kernel support
-const rho0 = 1000.   	   #fluid density
-const m = rho0*dr^2        #particle mass
-const g = -9.8*VECY  #gravitational acceleration
-const mu = 0.0#8.4e-4          #dynamic viscosity of water
+const dr = 1.0e-2          # average particle distance (decrease to refine, increase to speed up)
+const h = 3.0*dr           # kernel radius
+const rho0 = 1000.   	   # fluid density
+const m = rho0*dr^2        # particle mass
+const g = -9.8*VECY        # gravitational acceleration
+const mu = 0.0#8.4e-4      # dynamic viscosity of water
 
 ##geometrical
 const water_column_width = 1.0
@@ -114,7 +114,7 @@ end
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
 	if p.type == FLUID && q.type == FLUID
 		ker = m*rDwendland2(h,r)
-		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+		p.a += -ker*(p.P/p.rho^2 + q.P/q.rho^2)*(p.x - q.x)
 		#p.a += +2*ker*mu/rho0^2*(p.v - q.v)
 	elseif p.type == FLUID && q.type == WALL && r < dr_wall
 		s = dr_wall/(r + eps)
@@ -157,7 +157,7 @@ end
 
 function energy(sys::ParticleSystem, p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
-	internal =  0.5*m*c^2*(p.rho - p.rho0)^2/rho0^2
+	internal =  m*c^2*(rho0/p.rho + log(abs(p.rho0/rho0)) - 2.0)
 	gravity_potential = -m*dot(g, p.x)
 	wall_potential = SmoothedParticles.sum(sys, LJ_potential, p)
 	return kinetic + internal + gravity_potential + wall_potential

@@ -26,6 +26,8 @@ Manifest.toml
 
 #results from examples
 examples/results
+tests/area_tests
+tests/volume_tests
 
 #experiments
 experiments
