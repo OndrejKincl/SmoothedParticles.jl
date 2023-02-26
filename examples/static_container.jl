@@ -1,6 +1,6 @@
 #=
 
-# 1: Static container
+# Static container
 
 ```@raw html
 	<img src='../assets/static_container.png' width="50%" height="50%" alt='missing' /><br>
@@ -8,10 +8,8 @@
 
 This is a hello world example of SPH. 
 Simulates motionless fluid in uniform gravitational field.
-Things that may be tested by this benchmark are: 
-* walls,
-* zero point stability of time integrator,
-* stability of free surface.
+Ideally, nothing should happen because the initial state is stable.
+However, spurious oscillation are often encountered.
 
 Let us begin by declaring a module and importing some stuff.
 =#
@@ -22,10 +20,10 @@ using Printf
 using SmoothedParticles
 
 #=
-Declare constant parameters
+### Declare constant parameters
 =#
 
-const dr = 3.0e-3       #average particle distance
+const dr = 1.5e-3       #average particle distance
 const h = 1.8*dr        #size of kernel support
 const rho0 = 1000.0     #fluid density
 const m = rho0*dr^2     #particle mass
@@ -40,15 +38,15 @@ const wall_width = 2.5*dr
 
 ##temporal parameters
 const dt = 0.2*h/c
-const dt_frame = 0.1
 const t_end = 0.5
+const dt_frame = max(t_end/50, dt)
 
 ##particle types
 const FLUID = 0.
 const WALL = 1.
 
 #=
-Declare variables to be stored in a Particle
+### Declare variables to be stored in a Particle
 =#
 
 mutable struct Particle <: AbstractParticle
@@ -78,7 +76,7 @@ function isfluid(p::Particle)::Float64
 end
 
 #=
-Define geometry and make particles
+### Define geometry and make particles
 =#
 function make_system()
 	grid = Grid(dr, :square)
@@ -88,12 +86,19 @@ function make_system()
 	sys = ParticleSystem(Particle, box + walls, h)
 	generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
 	generate_particles!(sys, grid, walls, x -> Particle(x,  WALL))
+	for p in sys.particles
+		P = rho0*g[2]*(p.x[2] - water_depth)                       # hydrostatic pressure
+		p.rho = rho0 + P/c^2                                               # solve for density
+	end
+	create_cell_list!(sys)
+	apply!(sys, internal_force!)
 	return sys
 end
 
 #=
-Define particle interactions
+### Define particle interactions
 =#
+
 @inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
 	p.rho += dt*dot(p.x-q.x, p.v-q.v)*m*rDwendland2(h,r)
 end
@@ -108,30 +113,41 @@ end
 	end
 end
 
-function update!(p::Particle)
-	p.v += dt*isfluid(p)*(p.a + g)
-	p.x += dt*isfluid(p)*p.v
+function move!(p::Particle)
+	p.x += 0.5*dt*p.v
 	p.a = VEC0
+end
+
+function accelerate!(p::Particle)
+	if p.type == FLUID
+		p.v += 0.5*dt*(p.a + g)
+	end
 end
 
 
 #=
-Put everything into a time loop
+### Put everything into a time loop
 =#
 function main()
 	sys = make_system()
 	@show sys.key_max
 	out = new_pvd_file("results/static_container")
 	for k = 0 : Int64(round(t_end/dt))
-		if (k %  Int64(round(dt_frame/dt)) == 0)
-			println("# of particles = ", length(sys.particles))
-			@printf("t = %.6e\n", k*dt)
-			save_frame!(out, sys, :rho, :type, :v)
-		end
+		apply!(sys, accelerate!)
+		apply!(sys, move!)
 		create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
+		apply!(sys, move!)
+		create_cell_list!(sys)
 		apply!(sys, internal_force!)
-		apply!(sys, update!)
+		apply!(sys, accelerate!)
+		if (k %  Int64(round(dt_frame/dt)) == 0)
+			@printf("t = %.6e s ", k*dt)
+			println("(",round(100*k*dt/t_end),"% complete)")
+			println("# of particles = ", length(sys.particles))
+			println()
+			save_frame!(out, sys, :rho, :type, :v)
+		end
 	end
 	save_pvd_file(out)
 end ##function main()

@@ -1,6 +1,6 @@
 #=
 
-# 5: Flow around cylinder
+# Flow around cylinder
 
 ```@raw html
 	<img src='../assets/cylinder.png' width="50%" height="50%" alt='missing' /><br>
@@ -122,7 +122,7 @@ end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
 	ker = m*rDwendland2(h,r)
-	p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+	p.a += -ker*(p.P/rho^2 + q.P/rho^2)*(p.x - q.x)
 	p.a += +2*ker*mu/rho0^2*(p.v - q.v)
     ker = m*rDwendland2(h/2,r)
     p.a += -2*ker*P0/rho0^2*(p.x - q.x)

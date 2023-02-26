@@ -1,6 +1,6 @@
 #=
 
-# 7: Water collapse in 3D
+# Water collapse in 3D
 
 A three dimensional variant of dam-break example.
 
@@ -98,7 +98,7 @@ end
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
 	if p.type == FLUID
 		ker = m*rDwendland3(h,r)
-		p.a += -ker*(p.P/rho0^2 + q.P/rho0^2)*(p.x - q.x)
+		p.a += -ker*(p.P/rho + q.P/rho)*(p.x - q.x)
 		p.a += +2*ker*mu/rho0^2*(p.v - q.v)
 	end
 end
@@ -119,7 +119,7 @@ end
 function energy(p::Particle)::Float64
 	kinetic = 0.5*m*dot(p.v, p.v)
 	potential = -m*dot(g, p.x)
-	internal =  0.5*m*c^2*(p.rho - rho0)^2/rho0^2
+	internal =  m*c^2*(rho0/p.rho + log(abs(p.rho0/rho0)) - 2.0)
 	return kinetic + potential + internal
 end
 

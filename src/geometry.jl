@@ -94,7 +94,7 @@ function is_inside(x::RealVector, e::Ellipse)::Bool
 end
 
 function boundarybox(e::Ellipse)::Box
-    return Rectangle(e.x1-r1, e.x2-r2, e.x1+r1, e.x2+r2) 
+    return Rectangle(e.x1-e.r1, e.x2-e.r2, e.x1+e.r1, e.x2+e.r2) 
 end
 
 
@@ -249,9 +249,6 @@ struct Ball <: Shape
     x2::Float64
     x3::Float64
     r::Float64
-    Ball(x1::Float64, x2::Float64, x3::Float64, r::Float64) = begin
-        return new(x1,x2,x3,r)
-    end
 end
 
 function is_inside(x::RealVector, b::Ball)::Bool
@@ -260,6 +257,28 @@ end
 
 function boundarybox(b::Ball)::Box
     return Box(b.x1-b.r, b.x2-b.r, b.x3-b.r, b.x1+b.r, b.x2+b.r, b.x3+b.r) 
+end
+
+"""
+    Ellipsoid(x1::Float64, x2::Float64, x3::Float64, r1::Float64, r2::Float64, r3::Float64) <: Shape
+
+Define an ellipsoid by specifying the center `(x1, x2, x3)` and three radii `r1,r2,r3`.
+"""
+struct Ellipsoid <: Shape
+    x1::Float64
+    x2::Float64
+    x3::Float64
+    r1::Float64
+    r2::Float64
+    r3::Float64
+end
+
+function is_inside(x::RealVector, ell::Ellipsoid)::Bool
+    return ((x[1] - ell.x1)/ell.r1)^2 + ((x[2] - ell.x2)/ell.r2)^2  + ((x[3] - ell.x3)/ell.r3)^2 <= 1.0
+end
+
+function boundarybox(ell::Ellipsoid)::Box
+    return Box(ell.x1-ell.r1, ell.x2-ell.r2, ell.x3-ell.r3, ell.x1+ell.r1, ell.x2+ell.r2, ell.x3+ell.r3) 
 end
 
 """
@@ -350,4 +369,67 @@ function ClosedSpline(x::Tuple{Float64, Float64}...; n::Int64 = 32)::Shape
     ts_fine = [i/(n-1) for i in 0:(n-1)]
     y = Tuple((itp(t, 1), itp(t,2)) for t in ts_fine)
     return Polygon(y...)
+end
+
+"""
+    Cone(a1::Float64, a2::Float64, a3::Float64, b1::Float64, b2::Float64, b3::Float64, ar::Float64, br::Float64)
+
+Makes a (truncated) cone with a basis of radius `ar` centered at point `a` and tip centered at point `b` of radius `br`.
+"""
+
+struct Cone <: Shape
+    a::RealVector
+    b::RealVector
+    ar::Float64
+    br::Float64
+    len::Float64
+    Cone(a1::Float64, a2::Float64, a3::Float64, b1::Float64, b2::Float64, b3::Float64, ar::Float64, br::Float64) = begin
+        a = RealVector(a1,a2,a3)
+        b = RealVector(b1,b2,b3)
+        return new(a, b, ar, br, norm(a-b))
+    end        
+end
+
+function is_inside(x::RealVector, cone::Cone)::Bool
+    s = dot(x - cone.a, cone.b - cone.a)
+    if !(0.0 <= s <= cone.len)
+        return false
+    end
+    t = norm(x - s*cone.b - (1-s)*cone.a)
+    return (s/cone.len*cone.br + (1.0 - s/cone.len)*cone.ar >= t) 
+end
+
+function boundarybox(cone::Cone)::Box
+    R = max(cone.ar, cone.br)
+    x_min = min(cone.a[1], cone.b[1]) - R
+    x_max = max(cone.a[1], cone.b[1]) + R
+    y_min = min(cone.a[2], cone.b[2]) - R
+    y_max = max(cone.a[2], cone.b[2]) + R
+    z_min = min(cone.a[3], cone.b[3]) - R
+    z_max = max(cone.a[3], cone.b[3]) + R
+    return Box(x_min, y_min, z_min, x_max, y_max, z_max)
+end
+
+
+"""
+    RevolutionBody(s::Shape)
+
+Makes a 3d body by rotating a 2d shape 's' around the z-axis.
+"""
+
+struct RevolutionBody <: Shape
+    s::Shape     
+end
+
+function is_inside(x::RealVector, rev::RevolutionBody)::Bool
+    r = sqrt(x[1]^2 + x[2]^2)
+    return is_inside(RealVector(r,x[3],0.), rev.s)
+end
+
+function boundarybox(rev::RevolutionBody)::Box
+    rect = boundarybox(rev.s)
+    R = rect.x1_max
+    z_min = rect.x2_min
+    z_max = rect.x2_max
+    return Box(-R, -R, z_min, R, R, z_max)
 end

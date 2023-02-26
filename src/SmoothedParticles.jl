@@ -19,7 +19,8 @@ export AbstractParticle,
        DataField
 
 include("kernels.jl")
-export wendland2, Dwendland2, rDwendland2, 
+export wendland1, Dwendland1, rDwendland1,
+       wendland2, Dwendland2, rDwendland2, 
        wendland3, Dwendland3, rDwendland3, DDwendland3,
        spline24, Dspline24, rDspline24,
        spline23, Dspline23, rDspline23
@@ -40,7 +41,8 @@ export Grid,
        CubicGrid,
        FacecenteredGrid,
        BodycenteredGrid,
-       DiamondGrid
+       DiamondGrid,
+       dimension
 
 include("geometry.jl")
 export generate_particles!, 
@@ -58,7 +60,10 @@ export generate_particles!,
        Transform,
        is_inside,
        Polygon,
-       ClosedSpline
+       ClosedSpline,
+       Ellipsoid,
+       Cone,
+       RevolutionBody
 
 include("IO.jl")
 export save_frame!, 
