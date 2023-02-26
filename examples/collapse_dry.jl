@@ -10,7 +10,7 @@ Simulation of a water column collapsing under its own weight.
 This would be very difficult to make in a mesh-based method like FDM, FEM or FVM.
 Fortunately, SPH turns this into an easy task. 
 We use a very basic explicit SPH scheme with pressure-stabilized Verlet time integrator.
-This benchmark is (more or less) a recomputation of a simulation described in D. Violeau, (FLUID MECHANICS AND THE SPH METHOD)[https://books.google.cz/books?hl=en&lr=&id=8_RQEAAAQBAJ&oi=fnd&pg=PP1&dq=violeau+fluid+mechanics&ots=9dcGEu27hR&sig=jeE157G1gUvzv1v1TKDtQeswWeA&redir_esc=y#v=onepage&q=violeau%20fluid%20mechanics&f=false], page 484.
+This benchmark is (more or less) a recomputation of a simulation described in D. Violeau, [FLUID MECHANICS AND THE SPH METHOD](https://books.google.cz/books?hl=en&lr=&id=8_RQEAAAQBAJ&oi=fnd&pg=PP1&dq=violeau+fluid+mechanics&ots=9dcGEu27hR&sig=jeE157G1gUvzv1v1TKDtQeswWeA&redir_esc=y#v=onepage&q=violeau%20fluid%20mechanics&f=false), page 484.
 We show how to implement it using SmoothedParticles.jl. Dependencies can be installed with
 ```
 import Pkg
