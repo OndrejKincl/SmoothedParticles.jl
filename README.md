@@ -66,4 +66,4 @@ There are two ways how to plot **streamlines** of an SPH result in ParaView:
 
 # SPHKernels.jl
 
-Quintic wendland kernels for 1d, 2d and 3d are implemented in this package [examples](https://github.com/OndrejKincl/SmoothedParticles.jl/tree/master/examples). SmoothedParticles.jl is also compatible with kernels from [SPHKernels.jl](https://github.com/LudwigBoess/SPHKernels.jl) which offers a greater variety.
+Quintic wendland kernels for 1d, 2d and 3d are implemented in this package. SmoothedParticles.jl is also compatible with kernels from [SPHKernels.jl](https://github.com/LudwigBoess/SPHKernels.jl) which offers a greater variety.
