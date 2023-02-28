@@ -62,3 +62,8 @@ Open a .pvd file. The recommended display representation is **Point Gaussian**. 
 There are two ways how to plot **streamlines** of an SPH result in ParaView: 
 1) use **SPH Volume Interpolator** and then choose **Surface LIC** representation (version 5.11+ or plugin)
 2) use **Delaunay2D** filter and then **Stream Tracer** or **Evenly Spaced Streamlines**
+
+
+# SPHKernels.jl
+
+Quintic wendland kernels for 1d, 2d and 3d are implemented in this package [examples](https://github.com/OndrejKincl/SmoothedParticles.jl/tree/master/examples). SmoothedParticles.jl is also compatible with kernels from [SPHKernels.jl](https://github.com/LudwigBoess/SPHKernels.jl) which offers a greater variety.
