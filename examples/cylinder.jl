@@ -12,6 +12,7 @@ All parameters of this benchmark can be found
  <a href="http://www.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark1_re20.html">here.</a>
 ```
 
+The initial setup was created using the packing technique from a paper *Particle packing algorithm for SPH schemes* by Colagrosi et al.
 =#
 
 module cylinder
@@ -26,41 +27,61 @@ Declare constants
 =#
 
 #geometry parameters
-const dr = 3.9e-3 		     #average particle distance (decrease to make finer simulation)
-const h = 2.5*dr		     #size of kernel support
-const chan_l = 0.8 #2.2      #length of the channel
+const chan_l = 2.2
 const chan_w = 0.41          #width of the channel
-const cyl1 = dr*round(0.2/dr)  #x coordinate of the cylinder
-const cyl2 = dr*round(0.2/dr)  #y coordinate of the cylinder
+const cyl1 = 0.2             #x coordinate of the cylinder
+const cyl2 = 0.005           #y coordinate of the cylinder
 const cyl_r = 0.05           #radius of the cylinder
-const wall_w = 2.5*dr        #width of the wall
-const inflow_l = 3.0*dr      #width of inflow layer
+const dr = pi*cyl_r/20 		 #average particle distance (decrease to make finer simulation)
+const h = 2.4*dr
+const bc_width = 6*dr
+const x2_min = -chan_w/2 - 6*dr
+const x2_max =  chan_w/2 + 6*dr
 
 
 #physical parameters
-const U_max = 1.0       #maximum inflow velocity
+const U_max = 0.3       #maximum inflow velocity
 const rho0 = 1.0		#referential fluid density
-const m = rho0*dr^2		#particle mass
-const c = 40.0*U_max	#numerical speed of sound
-const mu = 1.0e-3		#dynamic viscosity of water
-const nu = 1.0e-3		#pressure stabilization
-const P0 = 1.2          #anti-clump term
+const m0 = rho0*dr^2	#particle mass
+const c = 20.0*U_max	#numerical speed of sound
+const mu = 1.0e-3		#dynamic viscosity
+const nu = 0.1*h*c      #pressure stabilization
+
 
 #temporal parameters
-const dt = 0.2*h/c      #time step
-const dt_frame = 0.02    #how often data is saved
-const t_end = 5.0      #end of simulation
-const t_acc = 0.5      #time to accelerate to full speed
+const dt = 0.1*h/c                     #time step
+const t_end = 10.0                     #end of simulation
+const dt_frame = max(dt, t_end/200)    #how often data is saved
+const t_acc = 1.0                      #time to accelerate to full speed
+const t_measure = t_end/2              #time from which we start measuring drag and lift
 
 #particle types
 const FLUID = 0.
-const WALL = 1.
-const INFLOW = 2.
+const INFLOW = 1.
+const WALL = 2.
 const OBSTACLE = 3.
 
 #=
 Declare variables to be stored in a Particle
 =#
+
+function check_symmetry(sys::ParticleSystem)::Bool
+    for p in sys.particles
+        has_mirror = false
+        _x = RealVector(p.x[1], -p.x[2], 0.0)
+        _v = RealVector(p.v[1], -p.v[2], 0.0)
+        _a = RealVector(p.a[1], -p.a[2], 0.0)
+        for q in sys.particles
+            if (q.x == _x) && (q.v == _v) && (q.a == _a)
+                has_mirror = true
+            end
+        end
+        if !has_mirror
+            return false
+        end
+    end
+    return true
+end
 
 mutable struct Particle <: AbstractParticle
     x::RealVector #position
@@ -69,31 +90,18 @@ mutable struct Particle <: AbstractParticle
     rho::Float64 #density
     Drho::Float64 #rate of density
     P::Float64 #pressure
+    m::Float64 #mass
     type::Float64 #particle type
-    Particle(x,type) = begin
-        return new(x, VEC0, VEC0, rho0, 0., 0., type)
+    Particle(x, type=FLUID) = begin
+        return new(x, VEC0, VEC0,  rho0, 0., 0., m0, type)
     end
 end
 
 function make_system()
-    domain = Rectangle(-inflow_l, -10*wall_w, chan_l, chan_w + 10*wall_w)
+    domain = Rectangle(-bc_width, x2_min, chan_l, x2_max)
     sys = ParticleSystem(Particle, domain, h)
-    grid = Grid(dr, :square)
-
-    #define geometry
-    obstacle = Circle(cyl1, cyl2, cyl_r)
-    pipe = Rectangle(-inflow_l, 0., chan_l, chan_w)
-    wall = BoundaryLayer(pipe, grid, wall_w)
-    wall = Specification(wall, x -> (-inflow_l <= x[1] <= chan_l))
-    inflow = Specification(pipe - obstacle, x -> x[1] < 0.0)
-    fluid = Specification(pipe - obstacle, x -> x[1] >= 0.0)
-
-    #generate particles
-    generate_particles!(sys, grid, fluid, x -> Particle(x, FLUID))
-    generate_particles!(sys, grid, inflow, x -> Particle(x, INFLOW))
-    generate_particles!(sys, grid, wall, x -> Particle(x, WALL))
-    generate_particles!(sys, grid, obstacle, x -> Particle(x, OBSTACLE))
-
+    import_particles!(sys, "init/cylinder.vtp", x -> Particle(x))
+    @show check_symmetry(sys)
     return sys
 end
 
@@ -102,30 +110,35 @@ end
 function set_inflow_speed!(p::Particle, t::Float64)
     if p.type == INFLOW
         s = min(1.0, t/t_acc)
-        v1 = 4.0*s*U_max*p.x[2]*(chan_w - p.x[2])/chan_w^2
+        v1 = s*U_max*(1.0 - (2.0*p.x[2]/chan_w)^2)
         p.v = v1*VECX
     end
 end
 
 #Define interactions between particles
 
+
 @inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
+	ker = q.m*rDwendland2(h,r)
+	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
+    if p.type == FLUID && q.type == FLUID
+        p.Drho += 2*nu/p.rho*(p.rho - q.rho)
+    end
 end
 
 function find_pressure!(p::Particle)
-	p.rho += p.Drho*dt
+    if p.x[1] >= -bc_width + h
+	     p.rho += p.Drho*dt
+    end
 	p.Drho = 0.0
-	p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+	p.P = c^2*(p.rho - rho0)
 end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.a += -ker*(p.P/rho^2 + q.P/rho^2)*(p.x - q.x)
-	p.a += +2*ker*mu/rho0^2*(p.v - q.v)
-    ker = m*rDwendland2(h/2,r)
-    p.a += -2*ker*P0/rho0^2*(p.x - q.x)
+	ker = q.m*rDwendland2(h,r)
+    x_pq = p.x - q.x
+	p.a += -ker*(p.P/p.rho^2 + q.P/q.rho^2)*x_pq
+    p.a += 8.0*ker*mu/(p.rho*q.rho)*dot(p.v - q.v, x_pq)/(r*r + 0.01*h*h)*x_pq
 end
 
 function move!(p::Particle)
@@ -135,9 +148,16 @@ function move!(p::Particle)
 	end
 end
 
+function gravity(p::Particle)
+    #f = (RealVector(cyl1, cyl2, 0.0) - p.x)
+    f = RealVector(cyl1 - p.x[1], -p.x[2], 0.0)
+    absf2 = (cyl1 - p.x[1])^2 + p.x[2]^2
+    return 0.3*U_max^2*f/absf2
+end
+
 function accelerate!(p::Particle)
 	if p.type == FLUID
-		p.v += 0.5*dt*p.a
+		p.v += 0.5*dt*(p.a + gravity(p))
 	end
 end
 
@@ -146,60 +166,68 @@ function add_new_particles!(sys::ParticleSystem)
     for p in sys.particles
         if p.type == INFLOW && p.x[1] >= 0
             p.type = FLUID
-            x = p.x - inflow_l*VECX
-            push!(new_particles, Particle(x, INFLOW))
+            x = p.x - bc_width*VECX
+            newp = Particle(x, INFLOW)
+            push!(new_particles, newp)
         end
     end
     append!(sys.particles, new_particles)
 end
 
-function calculate_force(sys::ParticleSystem)::RealVector
-    F = VEC0
-    for p in sys.particles
-        if p.type == OBSTACLE
-            F += m*p.a
-        end
-    end
-    C = 2.0*F/((2.0*U_max/3.0)^2*(2.0*cyl_r))
+function calculate_force(obstacle::Vector{Particle})::RealVector
+    F = sum(p -> p.m*p.a, obstacle)
+    L_char = 0.1
+    U_mean = 2/3*U_max
+    C = 2.0*F/(L_char*U_mean^2)
     return C
 end
 
 function  main()
     sys = make_system()
 	out = new_pvd_file(folder_name)
-    C_D = Float64[]
-    C_L = Float64[]
-
+    save_frame!(out, sys, :v, :P, :rho, :type)
+    C_SPH = VEC0
+    C_ref = RealVector(5.57953523384, 0.010618948146, 0.)
+    nsteps = Int64(round(t_end/dt))
+    nsamples = 0
+    obstacle = filter(p -> p.type==OBSTACLE, sys.particles)
     #a modified Verlet scheme
-	for k = 0 : Int64(round(t_end/dt))
+	for k = 1 : nsteps 
         t = k*dt
+        apply!(sys, accelerate!)
         apply!(sys, move!)
         add_new_particles!(sys)
-        for p in sys.particles
-            set_inflow_speed!(p,t)
-        end
+        apply!(sys, p -> set_inflow_speed!(p,t))
         create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
         apply!(sys, find_pressure!)
         apply!(sys, internal_force!)
         apply!(sys, accelerate!)
+        
+        if t > t_measure
+            nsamples += 1
+            C_SPH += calculate_force(obstacle)
+        end
+
         #save data at selected frames
+        
         if (k %  Int64(round(dt_frame/dt)) == 0)
             @show t
-            C = calculate_force(sys)
-            push!(C_D, C[1])
-            push!(C_L, C[2])
-            save_frame!(out, sys, :v, :P, :type)
+            @show check_symmetry(sys)
+            println("N = ", length(sys.particles))
+            println("C_drag = ", C_SPH[1]/nsamples)
+            println("ref value = ", C_ref[1]) 
+            println("C_lift = ", C_SPH[2]/nsamples)
+            println("ref value = ", C_ref[2]) 
+            save_frame!(out, sys, :v, :P, :rho, :type)
         end
-		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
     println()
-    C_SPH = RealVector(sum(C_D[end-9:end]/10), sum(C_L[end-9:end]/10), 0.)
-    C_exact = RealVector(5.57953523384, 0.010618948146, 0.)
-    relative_error = norm(C_SPH - C_exact)/norm(C_exact)
+    C_SPH = C_SPH/nsamples
+    relative_error = norm(C_SPH - C_ref)/norm(C_ref)
     @show C_SPH
-    @show C_exact
+    @show C_ref
     println("relative error = ",100*relative_error,"%")
 end
 

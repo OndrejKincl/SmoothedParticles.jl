@@ -1,9 +1,10 @@
 # SmoothedParticles.jl
+
+![RayleighBenard](docs/src/assets/promopic.png)
+
 Parallelized library for smoothed particle hydrodynamics (SPH) in 2d and 3d. Requires Julia 1.5 or newer. Cell-list optimized, flexible. Ideal for academia. Designed for experimenting with various SPH formulations. Both WCSPH and ISPH is supported. It creates files in pvd format for visualization in Paraview.
 
 [Documentation](https://ondrejkincl.github.io/SmoothedParticles.jl/dev/index.html)
-
-
 
 # Quick start
   
