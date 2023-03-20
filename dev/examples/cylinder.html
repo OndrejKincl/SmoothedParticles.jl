@@ -1,74 +1,81 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Flow around cylinder · SmoothedParticles.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">SmoothedParticles.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="static_container.html">Static container</a></li><li><a class="tocitem" href="collapse_dry.html">Water collapse (explicit)</a></li><li><a class="tocitem" href="collapse_dry_implicit.html">Water collapse (implicit)</a></li><li><a class="tocitem" href="cavity_flow.html">Lid-driven cavity</a></li><li class="is-active"><a class="tocitem" href="cylinder.html">Flow around cylinder</a></li><li><a class="tocitem" href="drop.html">Surface tension simulation in 3D</a></li><li><a class="tocitem" href="collapse3d.html">Water collapse in 3D</a></li><li><a class="tocitem" href="collapse_symplectic.html">Water collapse (explicit, symplectic, and reversible)</a></li><li><a class="tocitem" href="Kepler_vortex.html">Kepler vortex (explicit, symplectic, and reversible)</a></li></ul></li><li><span class="tocitem">API Documentation</span><ul><li><a class="tocitem" href="../core.html">Core</a></li><li><a class="tocitem" href="../kernels.html">Kernels</a></li><li><a class="tocitem" href="../structs.html">Structs</a></li><li><a class="tocitem" href="../geometry.html">Geometry</a></li><li><a class="tocitem" href="../IO.html">Input/Output</a></li><li><a class="tocitem" href="../grids.html">Grids</a></li><li><a class="tocitem" href="../algebra.html">Algebra</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href="cylinder.html">Flow around cylinder</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="cylinder.html">Flow around cylinder</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/OndrejKincl/SmoothedParticles.jl/blob/master/docs/src/examples/cylinder.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Flow-around-cylinder"><a class="docs-heading-anchor" href="#Flow-around-cylinder">Flow around cylinder</a><a id="Flow-around-cylinder-1"></a><a class="docs-heading-anchor-permalink" href="#Flow-around-cylinder" title="Permalink"></a></h1>	<img src='../assets/cylinder.png' width="50%" height="50%" alt='missing' /><br>A simulation of flow around cylinder.
 All parameters of this benchmark can be found
- <a href="http://www.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark1_re20.html">here.</a><pre><code class="language-julia hljs">module cylinder
+ <a href="http://www.mathematik.tu-dortmund.de/~featflow/en/benchmarks/cfdbenchmarking/flow/dfg_benchmark1_re20.html">here.</a><p>The initial setup was created using the packing technique from a paper <em>Particle packing algorithm for SPH schemes</em> by Colagrosi et al.</p><pre><code class="language-julia hljs">module cylinder
 
 using Printf
 using SmoothedParticles
 
 const folder_name = &quot;results/cylinder&quot;</code></pre><p>Declare constants</p><pre><code class="language-julia hljs">#geometry parameters
-const dr = 3.9e-3 		     #average particle distance (decrease to make finer simulation)
-const h = 2.5*dr		     #size of kernel support
-const chan_l = 0.8 #2.2      #length of the channel
+const chan_l = 2.2
 const chan_w = 0.41          #width of the channel
-const cyl1 = dr*round(0.2/dr)  #x coordinate of the cylinder
-const cyl2 = dr*round(0.2/dr)  #y coordinate of the cylinder
+const cyl1 = 0.2             #x coordinate of the cylinder
+const cyl2 = 0.005           #y coordinate of the cylinder
 const cyl_r = 0.05           #radius of the cylinder
-const wall_w = 2.5*dr        #width of the wall
-const inflow_l = 3.0*dr      #width of inflow layer
+const dr = pi*cyl_r/20 		 #average particle distance (decrease to make finer simulation)
+const h = 2.4*dr
+const bc_width = 6*dr
+const x2_min = -chan_w/2 - 6*dr
+const x2_max =  chan_w/2 + 6*dr
 
 
 #physical parameters
-const U_max = 1.0       #maximum inflow velocity
+const U_max = 0.3       #maximum inflow velocity
 const rho0 = 1.0		#referential fluid density
-const m = rho0*dr^2		#particle mass
-const c = 40.0*U_max	#numerical speed of sound
-const mu = 1.0e-3		#dynamic viscosity of water
-const nu = 1.0e-3		#pressure stabilization
-const P0 = 1.2          #anti-clump term
+const m0 = rho0*dr^2	#particle mass
+const c = 20.0*U_max	#numerical speed of sound
+const mu = 1.0e-3		#dynamic viscosity
+const nu = 0.1*h*c      #pressure stabilization
+
 
 #temporal parameters
-const dt = 0.2*h/c      #time step
-const dt_frame = 0.02    #how often data is saved
-const t_end = 5.0      #end of simulation
-const t_acc = 0.5      #time to accelerate to full speed
+const dt = 0.1*h/c                     #time step
+const t_end = 10.0                     #end of simulation
+const dt_frame = max(dt, t_end/200)    #how often data is saved
+const t_acc = 1.0                      #time to accelerate to full speed
+const t_measure = t_end/2              #time from which we start measuring drag and lift
 
 #particle types
 const FLUID = 0.
-const WALL = 1.
-const INFLOW = 2.
-const OBSTACLE = 3.</code></pre><p>Declare variables to be stored in a Particle</p><pre><code class="language-julia hljs">mutable struct Particle &lt;: AbstractParticle
+const INFLOW = 1.
+const WALL = 2.
+const OBSTACLE = 3.</code></pre><p>Declare variables to be stored in a Particle</p><pre><code class="language-julia hljs">function check_symmetry(sys::ParticleSystem)::Bool
+    for p in sys.particles
+        has_mirror = false
+        _x = RealVector(p.x[1], -p.x[2], 0.0)
+        _v = RealVector(p.v[1], -p.v[2], 0.0)
+        _a = RealVector(p.a[1], -p.a[2], 0.0)
+        for q in sys.particles
+            if (q.x == _x) &amp;&amp; (q.v == _v) &amp;&amp; (q.a == _a)
+                has_mirror = true
+            end
+        end
+        if !has_mirror
+            return false
+        end
+    end
+    return true
+end
+
+mutable struct Particle &lt;: AbstractParticle
     x::RealVector #position
     v::RealVector #velocity
     a::RealVector #acceleration
     rho::Float64 #density
     Drho::Float64 #rate of density
     P::Float64 #pressure
+    m::Float64 #mass
     type::Float64 #particle type
-    Particle(x,type) = begin
-        return new(x, VEC0, VEC0, rho0, 0., 0., type)
+    Particle(x, type=FLUID) = begin
+        return new(x, VEC0, VEC0,  rho0, 0., 0., m0, type)
     end
 end
 
 function make_system()
-    domain = Rectangle(-inflow_l, -10*wall_w, chan_l, chan_w + 10*wall_w)
+    domain = Rectangle(-bc_width, x2_min, chan_l, x2_max)
     sys = ParticleSystem(Particle, domain, h)
-    grid = Grid(dr, :square)
-
-    #define geometry
-    obstacle = Circle(cyl1, cyl2, cyl_r)
-    pipe = Rectangle(-inflow_l, 0., chan_l, chan_w)
-    wall = BoundaryLayer(pipe, grid, wall_w)
-    wall = Specification(wall, x -&gt; (-inflow_l &lt;= x[1] &lt;= chan_l))
-    inflow = Specification(pipe - obstacle, x -&gt; x[1] &lt; 0.0)
-    fluid = Specification(pipe - obstacle, x -&gt; x[1] &gt;= 0.0)
-
-    #generate particles
-    generate_particles!(sys, grid, fluid, x -&gt; Particle(x, FLUID))
-    generate_particles!(sys, grid, inflow, x -&gt; Particle(x, INFLOW))
-    generate_particles!(sys, grid, wall, x -&gt; Particle(x, WALL))
-    generate_particles!(sys, grid, obstacle, x -&gt; Particle(x, OBSTACLE))
-
+    import_particles!(sys, &quot;init/cylinder.vtp&quot;, x -&gt; Particle(x))
+    @show check_symmetry(sys)
     return sys
 end
 
@@ -77,30 +84,35 @@ end
 function set_inflow_speed!(p::Particle, t::Float64)
     if p.type == INFLOW
         s = min(1.0, t/t_acc)
-        v1 = 4.0*s*U_max*p.x[2]*(chan_w - p.x[2])/chan_w^2
+        v1 = s*U_max*(1.0 - (2.0*p.x[2]/chan_w)^2)
         p.v = v1*VECX
     end
 end
 
 #Define interactions between particles
 
+
 @inbounds function balance_of_mass!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.Drho += ker*(dot(p.x-q.x, p.v-q.v) + 2*nu*(p.rho-q.rho))
+	ker = q.m*rDwendland2(h,r)
+	p.Drho += ker*(dot(p.x-q.x, p.v-q.v))
+    if p.type == FLUID &amp;&amp; q.type == FLUID
+        p.Drho += 2*nu/p.rho*(p.rho - q.rho)
+    end
 end
 
 function find_pressure!(p::Particle)
-	p.rho += p.Drho*dt
+    if p.x[1] &gt;= -bc_width + h
+	     p.rho += p.Drho*dt
+    end
 	p.Drho = 0.0
-	p.P = rho0*c^2*((p.rho/rho0)^7 - 1.0)/7
+	p.P = c^2*(p.rho - rho0)
 end
 
 @inbounds function internal_force!(p::Particle, q::Particle, r::Float64)
-	ker = m*rDwendland2(h,r)
-	p.a += -ker*(p.P/rho^2 + q.P/rho^2)*(p.x - q.x)
-	p.a += +2*ker*mu/rho0^2*(p.v - q.v)
-    ker = m*rDwendland2(h/2,r)
-    p.a += -2*ker*P0/rho0^2*(p.x - q.x)
+	ker = q.m*rDwendland2(h,r)
+    x_pq = p.x - q.x
+	p.a += -ker*(p.P/p.rho^2 + q.P/q.rho^2)*x_pq
+    p.a += 8.0*ker*mu/(p.rho*q.rho)*dot(p.v - q.v, x_pq)/(r*r + 0.01*h*h)*x_pq
 end
 
 function move!(p::Particle)
@@ -110,9 +122,16 @@ function move!(p::Particle)
 	end
 end
 
+function gravity(p::Particle)
+    #f = (RealVector(cyl1, cyl2, 0.0) - p.x)
+    f = RealVector(cyl1 - p.x[1], -p.x[2], 0.0)
+    absf2 = (cyl1 - p.x[1])^2 + p.x[2]^2
+    return 0.3*U_max^2*f/absf2
+end
+
 function accelerate!(p::Particle)
 	if p.type == FLUID
-		p.v += 0.5*dt*p.a
+		p.v += 0.5*dt*(p.a + gravity(p))
 	end
 end
 
@@ -121,61 +140,69 @@ function add_new_particles!(sys::ParticleSystem)
     for p in sys.particles
         if p.type == INFLOW &amp;&amp; p.x[1] &gt;= 0
             p.type = FLUID
-            x = p.x - inflow_l*VECX
-            push!(new_particles, Particle(x, INFLOW))
+            x = p.x - bc_width*VECX
+            newp = Particle(x, INFLOW)
+            push!(new_particles, newp)
         end
     end
     append!(sys.particles, new_particles)
 end
 
-function calculate_force(sys::ParticleSystem)::RealVector
-    F = VEC0
-    for p in sys.particles
-        if p.type == OBSTACLE
-            F += m*p.a
-        end
-    end
-    C = 2.0*F/((2.0*U_max/3.0)^2*(2.0*cyl_r))
+function calculate_force(obstacle::Vector{Particle})::RealVector
+    F = sum(p -&gt; p.m*p.a, obstacle)
+    L_char = 0.1
+    U_mean = 2/3*U_max
+    C = 2.0*F/(L_char*U_mean^2)
     return C
 end
 
 function  main()
     sys = make_system()
 	out = new_pvd_file(folder_name)
-    C_D = Float64[]
-    C_L = Float64[]
-
+    save_frame!(out, sys, :v, :P, :rho, :type)
+    C_SPH = VEC0
+    C_ref = RealVector(5.57953523384, 0.010618948146, 0.)
+    nsteps = Int64(round(t_end/dt))
+    nsamples = 0
+    obstacle = filter(p -&gt; p.type==OBSTACLE, sys.particles)
     #a modified Verlet scheme
-	for k = 0 : Int64(round(t_end/dt))
+	for k = 1 : nsteps
         t = k*dt
+        apply!(sys, accelerate!)
         apply!(sys, move!)
         add_new_particles!(sys)
-        for p in sys.particles
-            set_inflow_speed!(p,t)
-        end
+        apply!(sys, p -&gt; set_inflow_speed!(p,t))
         create_cell_list!(sys)
 		apply!(sys, balance_of_mass!)
         apply!(sys, find_pressure!)
         apply!(sys, internal_force!)
         apply!(sys, accelerate!)
+
+        if t &gt; t_measure
+            nsamples += 1
+            C_SPH += calculate_force(obstacle)
+        end
+
         #save data at selected frames
+
         if (k %  Int64(round(dt_frame/dt)) == 0)
             @show t
-            C = calculate_force(sys)
-            push!(C_D, C[1])
-            push!(C_L, C[2])
-            save_frame!(out, sys, :v, :P, :type)
+            @show check_symmetry(sys)
+            println(&quot;N = &quot;, length(sys.particles))
+            println(&quot;C_drag = &quot;, C_SPH[1]/nsamples)
+            println(&quot;ref value = &quot;, C_ref[1])
+            println(&quot;C_lift = &quot;, C_SPH[2]/nsamples)
+            println(&quot;ref value = &quot;, C_ref[2])
+            save_frame!(out, sys, :v, :P, :rho, :type)
         end
-		apply!(sys, accelerate!)
 	end
 	save_pvd_file(out)
     println()
-    C_SPH = RealVector(sum(C_D[end-9:end]/10), sum(C_L[end-9:end]/10), 0.)
-    C_exact = RealVector(5.57953523384, 0.010618948146, 0.)
-    relative_error = norm(C_SPH - C_exact)/norm(C_exact)
+    C_SPH = C_SPH/nsamples
+    relative_error = norm(C_SPH - C_ref)/norm(C_ref)
     @show C_SPH
-    @show C_exact
+    @show C_ref
     println(&quot;relative error = &quot;,100*relative_error,&quot;%&quot;)
 end
 
-end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="cavity_flow.html">« Lid-driven cavity</a><a class="docs-footer-nextpage" href="drop.html">Surface tension simulation in 3D »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 28 February 2023 10:44">Tuesday 28 February 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="cavity_flow.html">« Lid-driven cavity</a><a class="docs-footer-nextpage" href="drop.html">Surface tension simulation in 3D »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 20 March 2023 13:45">Monday 20 March 2023</span>. Using Julia version 1.6.7.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
