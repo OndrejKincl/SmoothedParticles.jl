@@ -65,24 +65,6 @@ const OBSTACLE = 3.
 Declare variables to be stored in a Particle
 =#
 
-function check_symmetry(sys::ParticleSystem)::Bool
-    for p in sys.particles
-        has_mirror = false
-        _x = RealVector(p.x[1], -p.x[2], 0.0)
-        _v = RealVector(p.v[1], -p.v[2], 0.0)
-        _a = RealVector(p.a[1], -p.a[2], 0.0)
-        for q in sys.particles
-            if (q.x == _x) && (q.v == _v) && (q.a == _a)
-                has_mirror = true
-            end
-        end
-        if !has_mirror
-            return false
-        end
-    end
-    return true
-end
-
 mutable struct Particle <: AbstractParticle
     x::RealVector #position
     v::RealVector #velocity
@@ -101,7 +83,6 @@ function make_system()
     domain = Rectangle(-bc_width, x2_min, chan_l, x2_max)
     sys = ParticleSystem(Particle, domain, h)
     import_particles!(sys, "init/cylinder.vtp", x -> Particle(x))
-    @show check_symmetry(sys)
     return sys
 end
 
@@ -213,7 +194,6 @@ function  main()
         
         if (k %  Int64(round(dt_frame/dt)) == 0)
             @show t
-            @show check_symmetry(sys)
             println("N = ", length(sys.particles))
             println("C_drag = ", C_SPH[1]/nsamples)
             println("ref value = ", C_ref[1]) 
