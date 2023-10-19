@@ -1,6 +1,6 @@
 #=
 
-# Kepler vortex (explicit, symplectic, and reversible)
+# Kepler vortex
 
 ```@raw html
 	<img src='../assets/Kepler.png' alt='missing' width="50%" height="50%" /><br>

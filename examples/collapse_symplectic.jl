@@ -1,6 +1,6 @@
 #=
 
-# Water collapse (explicit, symplectic, and reversible)
+# Symplecticity & reversibility
 
 ```@raw html
 	<img src='../assets/fixpa.png' alt='missing' width="50%" height="50%" /><br>
