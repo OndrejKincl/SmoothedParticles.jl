@@ -68,3 +68,9 @@ There are two ways how to plot **streamlines** of an SPH result in ParaView:
 # SPHKernels.jl
 
 Quintic wendland kernels for 1d, 2d and 3d are implemented in this package. SmoothedParticles.jl is also compatible with kernels from [SPHKernels.jl](https://github.com/LudwigBoess/SPHKernels.jl) which offers a greater variety.
+
+# How to cite
+If you use this library in your research, please cite following publications: 
+1) Kincl, Ondřej, David Schmoranzer, and Michal Pavelka. "Simulation of superfluid fountain effect using smoothed particle hydrodynamics." Physics of Fluids 35.4 (2023)
+2) Kincl, Ondřej, and Michal Pavelka. "Globally time-reversible fluid simulations with smoothed particle hydrodynamics." Computer Physics Communications 284 (2023): 108593.
+3) Kincl, Ondřej, et al. "Unified description of fluids and solids in Smoothed Particle Hydrodynamics." Applied Mathematics and Computation 439 (2023): 127579.
