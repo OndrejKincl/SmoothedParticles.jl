@@ -41,7 +41,7 @@ function capture_frame(sys::ParticleSystem, data::DataStorage)
         points[i,k] = sys.particles[k].x[i]
     end
     cells = [MeshCell(PolyData.Verts(), [i]) for i in 1:N]
-    vtk_file = vtk_grid(data.path*"/frame"*string(data.frame), points, cells)
+    vtk_file = vtk_grid(data.path*"/frame"*string(data.frame), points, cells; append=false)
     return vtk_file
 end
 
@@ -70,6 +70,9 @@ function save_frame!(data::DataStorage, sys::ParticleSystem, vars::Symbol...)
             @error("Cannot export type "*string(Type)*" to VTK.")
         end
     end
+    # Save the frame file immediately with all fields before adding to collection
+    vtk_save(frame)
+    # Add the now-finalized frame to the collection
     data.file[data.frame] = frame
     data.frame += 1
 end
