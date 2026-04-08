@@ -366,7 +366,7 @@ function main(;load_initial_state = false, initial_frame = 0, max_real_hrs= Inf)
     
     # The actual simulation
     @info "Dynamic simulation"
-    folder_name = "RaBe_Ra"*string(Ra)
+    folder_name = joinpath("results", "RaBe_Ra"*string(Ra))
     out = new_pvd_file(folder_name)
     if load_initial_state
         out.frame = initial_frame
@@ -485,7 +485,7 @@ function main(;load_initial_state = false, initial_frame = 0, max_real_hrs= Inf)
     end
 
     if save_last_state
-        state_file = new_pvd_file("RaBe_statefile")
+        state_file = new_pvd_file(joinpath("results", "RaBe_statefile"))
         save_frame!(state_file, sys, :type, :v, :s, :m, :rho, :rho_c)
         save_pvd_file(state_file)
     end
