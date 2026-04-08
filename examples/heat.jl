@@ -78,7 +78,7 @@ const eps = 1e-6
 ##temporal
 const dt = 0.01*h/c0
 @show dt
-const t_end = 0.5
+const t_end = 5.0
 @show t_end
 const dt_frame = t_end/500
 @show dt_frame

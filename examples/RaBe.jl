@@ -43,9 +43,9 @@ const h = 6.5*dr
 const h_rho = 6.5*dr
 const h_T = 6.5*dr
 const dt = 0.1*h/c_sound
-const t_end_max = 0.1
+const t_end_max = 10.0
 const t_end_min = 0.0
-const t_static_end = 0.1 
+const t_static_end = 1.0 
 const t_relax = 0.01
 const dt_static_frame = max(dt, t_static_end/50)
 const dt_frame = max(dt, t_end_max/500)
@@ -446,7 +446,7 @@ function main(;load_initial_state = false, initial_frame = 0, max_real_hrs= Inf)
         k += 1
 
         time_elapsed = (time() - initial_real_time)/3600 #in hrs
-        @show time_elapsed
+        #@show time_elapsed
         if time_elapsed > 0.9 * max_real_hrs
             @info "Ending the simulation so that it does not run out of time, at "*string(time_elapsed)*"hrs"
             terminate = true 
