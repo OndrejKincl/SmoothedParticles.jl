@@ -302,32 +302,6 @@ function save_results!(out::SmoothedParticles.DataStorage, sys::ParticleSystem, 
     end
 end
 
-function ensure_uint64_vtk_header!(filepath::String)
-	old_header = codeunits("<VTKFile type=\"PolyData\" version=\"1.0\" byte_order=\"LittleEndian\" compressor=\"vtkZLibDataCompressor\">")
-	new_header = codeunits("<VTKFile type=\"PolyData\" version=\"1.0\" byte_order=\"LittleEndian\" header_type=\"UInt64\" compressor=\"vtkZLibDataCompressor\">")
-	header_type_marker = codeunits("header_type=\"UInt64\"")
-	data = read(filepath)
-	if findfirst(header_type_marker, data) !== nothing
-		return
-	end
-	match = findfirst(old_header, data)
-	if match === nothing
-		return
-	end
-	patched = Vector{UInt8}(undef, length(data) - length(old_header) + length(new_header))
-	patched[1:first(match)-1] = data[1:first(match)-1]
-	patched[first(match):first(match)+length(new_header)-1] = new_header
-	patched[first(match)+length(new_header):end] = data[last(match)+1:end]
-	write(filepath, patched)
-end
-
-function fix_vtp_headers!(folder::String)
-	for file in readdir(folder; join=true)
-		endswith(file, ".vtp") || continue
-		ensure_uint64_vtk_header!(file)
-	end
-end
-
 function main(;heating = true) #if heating=true, the bottom edge is heated to Tdown and the upper edge cooled to Tup
 	sys = make_system()
 	out = new_pvd_file(folder_name)
@@ -421,7 +395,6 @@ function main(;heating = true) #if heating=true, the bottom edge is heated to Td
 	@show final_T
 
 	save_pvd_file(out)
-	fix_vtp_headers!(folder_name)
 
 end ## function main
 
