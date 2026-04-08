@@ -59,7 +59,7 @@ const wall_width = 2.5*dr
 
 ## temporal
 const dt = 0.1*h/c                      # numerical time step
-const t_end = 4.0                       # when to terminate (in seconds)
+const t_end = 0.1                       # when to terminate (in seconds)
 const dt_frame = max(dt,t_end/200)      # time step in the output (dt = dt_frame would save every frame, generating huge files)
 
 

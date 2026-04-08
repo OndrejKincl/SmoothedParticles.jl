@@ -40,7 +40,7 @@ const g = -9.8*VECY*10.0  #gravitational acceleration
 const mu = 8.4e-2          #dynamic viscosity of water
 const gamma = 1.6
 
-const folder_name = "heat"
+const folder_name = "results/heat"
 #const cv = 4184.0
 const cv = 1.0
 const p0 = 1.0e01

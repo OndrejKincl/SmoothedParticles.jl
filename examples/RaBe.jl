@@ -288,7 +288,7 @@ function main(;load_initial_state = false, initial_frame = 0, max_real_hrs= Inf)
     @show dist_from_boussinesq
 
     # Measure the static heat flux
-    folder_name = joinpath("RaBe_Ra"*string(Ra), "static")
+    folder_name = joinpath("results", "RaBe_Ra"*string(Ra), "static")
     csv_file = joinpath(folder_name, "stat_Q_results.csv")
     Q_static = 0.0
     if load_initial_state
