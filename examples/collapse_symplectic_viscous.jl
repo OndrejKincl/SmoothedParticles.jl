@@ -59,8 +59,11 @@ const eps = 1e-16
 
 ##temporal
 const dt = 0.1*h/c
-const t_end = 0.1
-const dt_frame = t_end/20
+const t_end = 1.0
+const dt_frame = t_end/100
+
+## output
+const OUT_DIR = "results/collapse_fixpa_viscous"
 
 ##particle types
 const FLUID = 0.
@@ -180,7 +183,7 @@ function energy(sys::ParticleSystem)
 	E_wal = 0.5 * sum(p -> SmoothedParticles.sum(sys, LJ_potential, p), fluid_particles)
 	
 	E_tot = E_kin + E_int + E_gra + E_wal
-	return (E_tot, E_kin, E_int, E_gThe energy is still not conserved.ra, E_wal)
+	return (E_tot, E_kin, E_int, E_gra, E_wal)
 end
 
 function entropy_production!(p::Particle, q::Particle, r::Float64)
@@ -229,7 +232,11 @@ end
 
 function main(;revert = true) #if revert=true, velocities are inverted at the end of the simulation and the simulation then goes backward
 	sys = make_system()
-	out = new_pvd_file("results/collapse_fixpa_viscous")
+    if !isdir(OUT_DIR)
+        mkdir(OUT_DIR)
+    end
+	out = new_pvd_file(OUT_DIR)
+
     #initialization
     create_cell_list!(sys)
     apply!(sys, find_rho0!, self = true)
@@ -273,12 +280,13 @@ function main(;revert = true) #if revert=true, velocities are inverted at the en
 		end
 	end
 
-	p1 = plot(times, Ss_arr, label = "entropy",legend=:bottomright)
-	savefig(p1, "results/collapse_symplectic_viscous/entropy.pdf")
+	gr() # Set the backend for Plots.jl to ensure savefig works
+	p1 = plot(times, Ss_arr, label = "entropy", legend=:bottomright)
+	savefig(p1, joinpath(OUT_DIR, "entropy.pdf"))
 	p2 = plot(times, [Etot_arr, Ekin_arr, Eint_arr, Egra_arr, Ewal_arr], label=["Total" "Kinetic" "Internal" "Gravity" "Wall"], legend=:left)
-	savefig(p2, "energy.pdf")
+	savefig(p2, joinpath(OUT_DIR, "energy.pdf"))
 	df = DataFrame(time=times, E_total=Etot_arr, E_kinetic=Ekin_arr, E_internal=Eint_arr, E_gravity=Egra_arr, E_wall=Ewal_arr, Entropy=Ss_arr)
-	CSV.write("diagnostics.csv", df)
+	CSV.write(joinpath(OUT_DIR, "diagnostics.csv"), df)
 
 	save_pvd_file(out)
 
