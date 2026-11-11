@@ -59,6 +59,7 @@ formulations = [
 	"EvolWBSPH",
 	"EvolWBPA",
 	"EvolWBPTH",
+	"EvolWBFC",
 ]
 
 for name in formulations

@@ -1,0 +1,18 @@
+# define global constants (physics & geometry)
+
+# physics
+g        = 9.81
+R_mass   = 287.05
+cp       = 1004.6750000000001 # 7 * R_mass / 2
+cv       = 717.625 # 7 * R_mass / 2 - R_mass
+gamma    = 1.4 # 7/5
+R_gas    = 8.314
+T_bg     = 250.0
+rho0    = 1.393
+N        = 0.13999999999999999 # sqrt(0.0196),         
+
+# geometry
+dom_height = 26e3
+dom_length = 400e3
+a          = 10e3
+z_t        = 26e3

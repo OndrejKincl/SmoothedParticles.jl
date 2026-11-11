@@ -189,11 +189,13 @@ function covering(grid::WitchExpGrid, s::Shape)::Vector{RealVector}
 end
 
 """
-make_system(Particle::Type, global_params::Dict, sim_params::Dict)
+make_system(Particle::Type, global_params::Dict, sim_params::Dict; wall_depth=Inf, lid_height=0.0)
 
 Creates the system's geometry and places particles of type `Particle in the positions.
+The wall below the ground is generated only down to the (flat-grid) depth `wall_depth`; the default keeps the whole fence.
+A rigid lid of wall particles of thickness `lid_height` is placed above the domain if `lid_height > 0`; the default leaves the top open.
 """
-function make_system(Particle::Type, global_params::Dict, sim_params::Dict)
+function make_system(Particle::Type, global_params::Dict, sim_params::Dict; wall_depth::Float64=Inf, lid_height::Float64=0.0)
 	# unpack needed parameters
 
 	@unpack dom_height, dom_length, a = global_params
@@ -245,6 +247,12 @@ function make_system(Particle::Type, global_params::Dict, sim_params::Dict)
 	# what is not specified is the fence's wall
 	fence_wall = fence - inflow_incoming_spec - inflow_ghost_spec - outflow_ghost_spec - top_lid_spec
 
+	# the fence is bc_width deep also below the ground, where the spacing keeps shrinking:
+	# most of these particles are out of reach of the fluid and can be left out
+	if isfinite(wall_depth)
+		fence_wall = Specification(fence_wall, x -> x[2] >= -wall_depth)
+	end
+
 	# compute the largest smoothing length
 	h_top = η * s_max * a_factor
 	
@@ -262,6 +270,12 @@ function make_system(Particle::Type, global_params::Dict, sim_params::Dict)
 	generate_particles!(sys, grid, inflow_incoming_spec, x -> Particle(x, initial_velocity, INFLOW_INCOMING, global_params, sim_params))
 	generate_particles!(sys, grid, inflow_ghost_spec, x -> Particle(x, initial_velocity, INFLOW_GHOST, global_params, sim_params))
 	generate_particles!(sys, grid, outflow_ghost_spec, x -> Particle(x, initial_velocity, OUTFLOW_GHOST, global_params, sim_params))
+
+	# rigid lid (generated last, so that the order of the other particles does not depend on it)
+	if lid_height > 0.0
+		lid_spec = Specification(fence, x -> (dom_height < x[2] <= dom_height + lid_height))
+		generate_particles!(sys, grid, lid_spec, x -> Particle(x, VEC0, MOUNTAIN, global_params, sim_params))
+	end
 
 	# set the smoothing length using the particle's altitude
 	for p in sys.particles

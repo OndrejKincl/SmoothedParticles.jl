@@ -1,0 +1,30 @@
+# EvolWBFC, mountain wave, 3600 s
+# the thesis mountain configuration (experiments/final/evolutionaryPTH) with a longer run and the sponge switched on
+# (EvolWBFC has a rigid lid above the domain; the sponge relaxes towards the inflow velocity)
+
+# spatial and temporal resolution
+dr = [520.0]            # 26e3/25 = 1040.0, 26e3/50 = 520.0, 26e4/75 = 346.0 , 26e3/100 = 260.0
+dt_rel = [0.1]           #this will be multiplied by h0/c
+t_end  = [3600.0]
+
+# numerics
+rho_floor = [1e-6]
+P_floor = [1e-10]
+eta = [1.8]
+epsilon = [0.01]
+alpha = [0.15]             # usually α = 0.05 - 0.2
+beta = [0.3]              # usually β = 2 α
+gamma_r_rel = [0.2]        # this will be multiplied by N = sqrt(0.0196)
+zeta = [1.0]               # acoustic dissipation of the mass balance (EvolWBFC only), 1 = Riemann solver
+
+# mountain geometry
+h_m = [100.0]
+
+# sponge layer
+z_beta = [3e3]
+
+# initial conditions
+v_initial = [20.0]
+
+# choice of the formulation
+formulation = ["EvolWBFC"]

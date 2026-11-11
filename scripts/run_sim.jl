@@ -85,6 +85,7 @@ key_map = Dict(
 	"alpha" => :α,
 	"beta" => :β,
 	"gamma_r_rel" => :γ_r_rel,
+	"zeta" => :ζ,
 
 	# initial conditions
 	"v_initial" => :v_initial,
